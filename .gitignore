@@ -1,3 +1,5 @@
+canu_assembly_bc1_*
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

@@ -1,0 +1,57 @@
+# include: "nanopore_only_assembly.smk"
+
+rule preprocessing:
+    input:
+        "data/{experiment}/{barcode}"
+    output:
+        "data/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq"
+    log:
+        "logs/{experiment}/{barcode}/preprocessing.log"
+    conda:
+        "envs/python3.yaml"
+    shell:
+        "python scripts/preprocessing.py {input} {wildcards.experiment} 2>&1 > {log}"
+
+
+rule filter_readlength:
+    input:
+        "data/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq"
+    params:
+        minlen="10000"
+    output:
+        "data/{experiment}/{barcode}/{experiment}_{barcode}_all_sizefilt.fastq"
+    log:
+        "logs/{experiment}/{barcode}/size_filter.log"
+    conda:
+        "envs/bbmap.yaml"
+    shell:
+        "bbduk.sh in={input} out={output} minlen={params.minlen} 2>&1 > {log}"
+
+
+rule filter_readqual:
+    input:
+        "data/{experiment}/{barcode}/{experiment}_{barcode}_all_sizefilt.fastq"
+    params:
+        minqual="12"
+    output:
+        "data/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fastq"
+    log:
+        "logs/{experiment}/{barcode}/qual_filter.log"
+    conda:
+        "envs/bbmap.yaml"
+    shell:
+        "bbduk.sh in={input} out={output} maq={params.minqual} 1> {log}"
+
+
+rule def porechop_barcodes_and_adapters:
+    input:
+        "data/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fastq"
+    output:
+        "data/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta"
+    log:
+        "logs/{experiment}/{barcode}/porechop.log"
+    conda:
+        "envs/porechop.yaml"
+    shell:
+        "porechop -i {input} -o {output} 2>&1 > {log}"
+    

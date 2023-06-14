@@ -1,25 +1,24 @@
-# include: "nanopore_only_assembly.smk"
 
 rule preprocessing:
     input:
         "data/{experiment}/{barcode}"
     output:
-        "data/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq"
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq"
     log:
         "logs/{experiment}/{barcode}/preprocessing.log"
     conda:
         "envs/python3.yaml"
     shell:
-        "python scripts/preprocessing.py {input} {wildcards.experiment} 2>&1 > {log}"
+        "python scripts/preprocessing.py {input} {wildcards.experiment} {output} 2>&1 > {log}"
 
 
 rule filter_readlength:
     input:
-        "data/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq"
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq"
     params:
-        minlen="10000"
+        minlen="20000"
     output:
-        "data/{experiment}/{barcode}/{experiment}_{barcode}_all_sizefilt.fastq"
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sizefilt.fastq"
     log:
         "logs/{experiment}/{barcode}/size_filter.log"
     conda:
@@ -30,11 +29,11 @@ rule filter_readlength:
 
 rule filter_readqual:
     input:
-        "data/{experiment}/{barcode}/{experiment}_{barcode}_all_sizefilt.fastq"
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sizefilt.fastq"
     params:
-        minqual="12"
+        minqual="14"
     output:
-        "data/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fastq"
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fastq"
     log:
         "logs/{experiment}/{barcode}/qual_filter.log"
     conda:
@@ -43,15 +42,87 @@ rule filter_readqual:
         "bbduk.sh in={input} out={output} maq={params.minqual} 1> {log}"
 
 
-rule def porechop_barcodes_and_adapters:
+rule porechop_barcodes_and_adapters:
     input:
-        "data/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fastq"
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fastq"
     output:
-        "data/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta"
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta"
     log:
         "logs/{experiment}/{barcode}/porechop.log"
     conda:
         "envs/porechop.yaml"
     shell:
         "porechop -i {input} -o {output} 2>&1 > {log}"
+
+
+rule assemble_canu:
+    input:
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta"
+    output:
+        outdir=directory("results/{experiment}/{barcode}/canu"),
+        contigs="results/{experiment}/{barcode}/canu/{experiment}_{barcode}_canu.contigs.fasta"
+    params:
+        genomeSize=230000,
+        useGrid="False"
+    # threads:
+    #     16
+    log:
+        "logs/{experiment}/{barcode}/canu.log"
+    conda:
+        "envs/canu.yaml"
+    shell:
+        "canu -nanopore {input} -p {wildcards.experiment}_{wildcards.barcode}_canu -d {output.outdir} genomeSize={params.genomeSize} useGrid={params.useGrid} 2>&1 > {log}"
+
+
+rule polish_canu_medaka:
+    input:
+        reads="results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta",
+        draft_asm="results/{experiment}/{barcode}/canu/{experiment}_{barcode}_canu.contigs.fasta"
+    output:
+        outdir=directory("results/{experiment}/{barcode}/medaka_canu"),
+        consensus="results/{experiment}/{barcode}/medaka_canu/consensus.fasta"
+    log:
+        "logs/{experiment}/{barcode}/medaka_canu.log"
+    threads:
+        16
+    conda:
+        "envs/medaka.yaml"
+    shell:
+        "medaka_consensus -i {input.reads} -d {input.draft_asm} -o {output.outdir} -t {threads} 2>&1 > {log}"
+
+
+rule assemble_flye:
+    input:
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta"
+    output:
+        outdir=directory("results/{experiment}/{barcode}/flye"),
+        outfile="results/{experiment}/{barcode}/flye/assembly.fasta"
+    params:
+        genomeSize=230000,
+        useGrid="False"
+    threads:
+        16
+    log:
+        "logs/{experiment}/{barcode}/canu.log"
+    conda:
+        "envs/flye.yaml"
+    shell:
+        "flye --nano-hq {input} -o {output.outdir} -g {params.genomeSize} -t {threads} 2>&1 > {log}"
+
+
+rule polish_flye_medaka:
+    input:
+        reads="results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta",
+        draft_asm="results/{experiment}/{barcode}/flye/assembly.fasta"
+    output:
+        outdir=directory("results/{experiment}/{barcode}/medaka_flye"),
+        consensus="results/{experiment}/{barcode}/medaka_flye/consensus.fasta"
+    log:
+        "logs/{experiment}/{barcode}/medaka_flye.log"
+    threads:
+        16
+    conda:
+        "envs/medaka.yaml"
+    shell:
+        "medaka_consensus -i {input.reads} -d {input.draft_asm} -o {output.outdir} -t {threads} 2>&1 > {log}"
     

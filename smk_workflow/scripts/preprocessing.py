@@ -14,14 +14,14 @@ def decompress_all(read_folder):
             os.remove(f.path)
 
 
-def concatenate_fastq(read_folder, exp_prefix):
+def concatenate_fastq(read_folder, exp_prefix, output):
     files = list(os.scandir(read_folder))
-    outname = f"{exp_prefix}_{os.path.split(read_folder)[-1]}_all.fastq"
-    outfile = os.path.join(read_folder, outname)
-    if os.path.exists(outfile):
+    # outname = f"{exp_prefix}_{os.path.split(read_folder)[-1]}_all.fastq"
+    # outfile = os.path.join(read_folder, outname)
+    if os.path.exists(output):
         print("Concatenated file already exists")
     else:
-        with open(outfile, "w") as out:
+        with open(output, "w") as out:
             for f in files:
                 print(f.path)
                 if f.path.endswith(".fastq") and not f.path.endswith("_all.fastq"):
@@ -29,11 +29,11 @@ def concatenate_fastq(read_folder, exp_prefix):
                         data = fq.read()
                         for line in data:
                             out.write(line)
-                    os.remove(f.path)
-    return outfile
+    return output
 
 if __name__ == "__main__":
     read_folder = sys.argv[1]
     exp_prefix = sys.argv[2]
+    output = sys.argv[3]
     decompress_all(read_folder)
-    concatenate_fastq(read_folder, exp_prefix)
+    concatenate_fastq(read_folder, exp_prefix, output)

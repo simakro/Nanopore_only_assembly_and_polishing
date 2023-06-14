@@ -1,0 +1,10 @@
+channels:
+  - conda-forge
+  - bioconda
+  - nodefaults
+dependencies:
+  - python =3.8
+  - xz =5.2.6
+  - medaka =1.7.0
+  - tensorflow =2.7.0
+  - h5py =3.7.0

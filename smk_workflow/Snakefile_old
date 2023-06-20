@@ -1,33 +1,4 @@
 
-
-EXPERIMENTS = ["SM0014_HCMV_Voigt_fastq_pass"]
-BARCODES = ["test"]
-ASSEMBLERS = ["canu", "flye"]
-
-
-def get_draft_asm(wildcards):
-    print(wildcards, type(wildcards))
-    if wildcards.assembler == "canu":
-        print("Assembler = Canu")
-        return f"results/{wildcards.experiment}/{wildcards.barcode}/{wildcards.assembler}/{wildcards.experiment}_{wildcards.barcode}_canu.contigs.fasta"
-    if wildcards.assembler == "flye":
-        print("Assembler = Flye")
-        return f"results/{wildcards.experiment}/{wildcards.barcode}/flye/assembly.fasta"
-
-
-rule all:
-    # input:
-    #     "results/SM0014_HCMV_Voigt_fastq_pass/test/medaka_canu/consensus.fasta"
-    #     "results/SM0014_HCMV_Voigt_fastq_pass/test/medaka_flye/consensus.fasta"
-    input:
-        expand("results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS)
-        # "results/{experiment}/{barcode}/medaka_flye/consensus.fasta"
-    # output:
-    #     "results/{experiment}/{barcode}/completion_flag.txt"
-    # shell:
-    #     "touch results/{wildcards.experiment}/{wildcards.barcode}/completion_flag.txt"
-
-
 rule preprocessing:
     input:
         "data/{experiment}/{barcode}"
@@ -120,6 +91,22 @@ rule assemble_canu:
 #         "medaka_consensus -i {input.reads} -d {input.draft_asm} -o {output.outdir} -t {threads} 2>&1 > {log}"
 
 
+rule polish_canu_medaka:
+    input:
+        reads="results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta",
+        draft_asm="results/{experiment}/{barcode}/canu/{experiment}_{barcode}_canu.contigs.fasta"
+    output:
+        outdir=directory("results/{experiment}/{barcode}/medaka_canu"),
+        consensus="results/{experiment}/{barcode}/medaka_canu/consensus.fasta"
+    log:
+        "logs/{experiment}/{barcode}/medaka_canu.log"
+    threads:
+        16
+    conda:
+        "envs/medaka.yaml"
+    shell:
+        "medaka_consensus -i {input.reads} -d {input.draft_asm} -o {output.outdir} -t {threads} 2>&1 > {log}"
+
 rule assemble_flye:
     input:
         "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta"
@@ -139,63 +126,19 @@ rule assemble_flye:
         "flye --nano-hq {input} -o {output.outdir} -g {params.genomeSize} -t {threads} 2>&1 > {log}"
 
 
-
-# rule polish_canu_medaka:
-#     input:
-#         reads="results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta",
-#         draft_asm="results/{experiment}/{barcode}/canu/{experiment}_{barcode}_canu.contigs.fasta"
-#     output:
-#         outdir=directory("results/{experiment}/{barcode}/medaka_canu"),
-#         consensus="results/{experiment}/{barcode}/medaka_canu/consensus.fasta"
-#     log:
-#         "logs/{experiment}/{barcode}/medaka_canu.log"
-#     threads:
-#         16
-#     conda:
-#         "envs/medaka.yaml"
-#     shell:
-#         "medaka_consensus -i {input.reads} -d {input.draft_asm} -o {output.outdir} -t {threads} 2>&1 > {log}"
-
-# rule polish_flye_medaka:
-#     input:
-#         reads="results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta",
-#         draft_asm="results/{experiment}/{barcode}/flye/assembly.fasta"
-#     output:
-#         outdir=directory("results/{experiment}/{barcode}/medaka_flye"),
-#         consensus="results/{experiment}/{barcode}/medaka_flye/consensus.fasta"
-#     log:
-#         "logs/{experiment}/{barcode}/medaka_flye.log"
-#     threads:
-#         16
-#     conda:
-#         "envs/medaka.yaml"
-#     shell:
-#         "medaka_consensus -i {input.reads} -d {input.draft_asm} -o {output.outdir} -t {threads} 2>&1 > {log}"
-
-
-rule polish_medaka:
+rule polish_flye_medaka:
     input:
         reads="results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta",
-        # draft_asm="results/{experiment}/{barcode}/{assembler}/{experiment}_{barcode}_canu.contigs.fasta",
-        # draft_asm="results/{experiment}/{barcode}/{assembler}/{experiment}_{barcode}_canu.contigs.fasta",
-        draft_asm=get_draft_asm
+        draft_asm="results/{experiment}/{barcode}/flye/assembly.fasta"
     output:
-        outdir=directory("results/{experiment}/{barcode}/medaka_{assembler}"),
-        consensus="results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta"
+        outdir=directory("results/{experiment}/{barcode}/medaka_flye"),
+        consensus="results/{experiment}/{barcode}/medaka_flye/consensus.fasta"
     log:
-        "logs/{experiment}/{barcode}/medaka_{assembler}.log"
+        "logs/{experiment}/{barcode}/medaka_flye.log"
     threads:
         16
     conda:
         "envs/medaka.yaml"
     shell:
         "medaka_consensus -i {input.reads} -d {input.draft_asm} -o {output.outdir} -t {threads} 2>&1 > {log}"
-
-
-# rule prokka:
-#     input:
-#         "results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta"
-#     output:
-#         "results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta"
-
-
+    

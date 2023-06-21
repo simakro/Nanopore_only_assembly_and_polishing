@@ -1,31 +1,38 @@
 
-
 EXPERIMENTS = ["SM0014_HCMV_Voigt_fastq_pass"]
-BARCODES = ["test"]
+BARCODES = [
+    "barcode01",
+    "barcode02",
+    "barcode03",
+    "barcode04",
+    "barcode05",
+    "barcode06",
+    "barcode07",
+    "barcode08",
+    "barcode09",
+    ]
 ASSEMBLERS = ["canu", "flye"]
 
 
 def get_draft_asm(wildcards):
-    print(wildcards, type(wildcards))
     if wildcards.assembler == "canu":
-        print("Assembler = Canu")
+        # print("Assembler = Canu")
         return f"results/{wildcards.experiment}/{wildcards.barcode}/{wildcards.assembler}/{wildcards.experiment}_{wildcards.barcode}_canu.contigs.fasta"
-    if wildcards.assembler == "flye":
-        print("Assembler = Flye")
+    elif wildcards.assembler == "flye":
+        # print("Assembler = Flye")
         return f"results/{wildcards.experiment}/{wildcards.barcode}/flye/assembly.fasta"
+    else:
+        print("WARNING: No assembler in wildcards. Defaulting to canu.")
+        return "canu"
 
 
 rule all:
-    # input:
-    #     "results/SM0014_HCMV_Voigt_fastq_pass/test/medaka_canu/consensus.fasta"
-    #     "results/SM0014_HCMV_Voigt_fastq_pass/test/medaka_flye/consensus.fasta"
     input:
-        expand("results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS)
-        # "results/{experiment}/{barcode}/medaka_flye/consensus.fasta"
-    # output:
-    #     "results/{experiment}/{barcode}/completion_flag.txt"
-    # shell:
-    #     "touch results/{wildcards.experiment}/{wildcards.barcode}/completion_flag.txt"
+        # expand("results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
+        expand("results/{experiment}/{barcode}/prokka_medaka_{assembler}_genusdb/{experiment}_{barcode}_{assembler}_prokka_genusdb.tsv", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
+        expand("results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk/{experiment}_{barcode}_{assembler}_prokka_protgbk.tsv", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
+        expand("results/{experiment}/{barcode}/homopolish_medaka_{assembler}/consensus_homopolished.fasta", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
+        expand("results/{experiment}/{barcode}/busco_medaka_{assembler}/run_herpesviridae_odb10/short_summary.json", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS)
 
 
 rule preprocessing:
@@ -139,45 +146,9 @@ rule assemble_flye:
         "flye --nano-hq {input} -o {output.outdir} -g {params.genomeSize} -t {threads} 2>&1 > {log}"
 
 
-
-# rule polish_canu_medaka:
-#     input:
-#         reads="results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta",
-#         draft_asm="results/{experiment}/{barcode}/canu/{experiment}_{barcode}_canu.contigs.fasta"
-#     output:
-#         outdir=directory("results/{experiment}/{barcode}/medaka_canu"),
-#         consensus="results/{experiment}/{barcode}/medaka_canu/consensus.fasta"
-#     log:
-#         "logs/{experiment}/{barcode}/medaka_canu.log"
-#     threads:
-#         16
-#     conda:
-#         "envs/medaka.yaml"
-#     shell:
-#         "medaka_consensus -i {input.reads} -d {input.draft_asm} -o {output.outdir} -t {threads} 2>&1 > {log}"
-
-# rule polish_flye_medaka:
-#     input:
-#         reads="results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta",
-#         draft_asm="results/{experiment}/{barcode}/flye/assembly.fasta"
-#     output:
-#         outdir=directory("results/{experiment}/{barcode}/medaka_flye"),
-#         consensus="results/{experiment}/{barcode}/medaka_flye/consensus.fasta"
-#     log:
-#         "logs/{experiment}/{barcode}/medaka_flye.log"
-#     threads:
-#         16
-#     conda:
-#         "envs/medaka.yaml"
-#     shell:
-#         "medaka_consensus -i {input.reads} -d {input.draft_asm} -o {output.outdir} -t {threads} 2>&1 > {log}"
-
-
 rule polish_medaka:
     input:
         reads="results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta",
-        # draft_asm="results/{experiment}/{barcode}/{assembler}/{experiment}_{barcode}_canu.contigs.fasta",
-        # draft_asm="results/{experiment}/{barcode}/{assembler}/{experiment}_{barcode}_canu.contigs.fasta",
         draft_asm=get_draft_asm
     output:
         outdir=directory("results/{experiment}/{barcode}/medaka_{assembler}"),
@@ -192,10 +163,50 @@ rule polish_medaka:
         "medaka_consensus -i {input.reads} -d {input.draft_asm} -o {output.outdir} -t {threads} 2>&1 > {log}"
 
 
-# rule prokka:
-#     input:
-#         "results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta"
-#     output:
-#         "results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta"
+rule homopolish: # Reference guided/based polishing without read information and may conceal variants! Assumes close homology (hence the name) between ref and sample.
+    input:
+        asm="results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta",
+        ref="resources/KP202868.1_Murid_herpesvirus_8_isolate_Berlin.fa"
+    output:
+        outdir = directory("results/{experiment}/{barcode}/homopolish_medaka_{assembler}"),
+        outfile= "results/{experiment}/{barcode}/homopolish_medaka_{assembler}/consensus_homopolished.fasta"
+    log:
+        "logs/{experiment}/{barcode}/medaka_{assembler}_homopolish.log"
+    threads:
+        16
+    conda:
+        "envs/homopolish.yaml"
+    shell:
+        "homopolish polish -a {input.asm} -l {input.ref} -m R9.4.pkl -o {output.outdir} -t {threads} 2>&1 > {log}"
 
 
+rule prokka:
+    input:
+        asm="results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta",
+        prot_gbk="data/KP202868.1_Murid_herpesvirus_8_isolate_Berlin.gbk"
+    output:
+        genusdb_dir=directory("results/{experiment}/{barcode}/prokka_medaka_{assembler}_genusdb"),
+        protgbk_dir=directory("results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk"),
+        genus_tsv="results/{experiment}/{barcode}/prokka_medaka_{assembler}_genusdb/{experiment}_{barcode}_{assembler}_prokka_genusdb.tsv",
+        protg_tsv="results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk/{experiment}_{barcode}_{assembler}_prokka_protgbk.tsv"
+    log:
+        "logs/{experiment}/{barcode}/prokka_medaka_{assembler}.log"
+    conda:
+        "envs/prokka.yaml"
+    shell:
+        "prokka --kingdom Viruses --genus Muromegalovirus {input.asm} --usegenus --outdir {output.genusdb_dir} --prefix {wildcards.experiment}_{wildcards.barcode}_{wildcards.assembler}_prokka_genusdb --force && " #  --addgenes --rawproduct
+        "prokka --kingdom Viruses --protein {input.prot_gbk} {input.asm} --outdir {output.protgbk_dir} --prefix {wildcards.experiment}_{wildcards.barcode}_{wildcards.assembler}_prokka_protgbk --force" # --genus Muromegalovirus --rawproduct
+
+
+rule busco:
+    input:
+        asm="results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta"
+    output:
+        outdir=directory("results/{experiment}/{barcode}/busco_medaka_{assembler}"),
+        outfile="results/{experiment}/{barcode}/busco_medaka_{assembler}/run_herpesviridae_odb10/short_summary.json"
+    log:
+        "logs/{experiment}/{barcode}/prokka_medaka_{assembler}.log"
+    conda:
+        "envs/busco.yaml"
+    shell:
+        "busco -i {input.asm} -l herpesviridae -o {output.outdir} -m genome -f"

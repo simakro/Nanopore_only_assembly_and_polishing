@@ -63,7 +63,6 @@ def porechop_barcodes_and_adapters(ql_filt_reads):
         ])
     return outname
 
-
 # def guppy_barcoder_trimming(ql_filt_reads):
 #     root, leaf = os.path.split(ql_filt_reads)
 #     savepath = os.path.join(root, "bc_trimmed")

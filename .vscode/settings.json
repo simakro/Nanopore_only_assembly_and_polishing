@@ -1,0 +1,25 @@
+{
+    "python.linting.enabled": false,
+    "python.linting.flake8Enabled": true,
+    "python.analysis.enablePytestSupport": false,
+    "editor.tokenColorCustomizations": {
+        "textMateRules": [
+            {
+                "scope":[
+                    "string.quoted.docstring.multi.python",
+                    "string.quoted.docstring.single.python",
+                    "string.quoted.docstring",
+                    "source.python.snakemake"
+                    ],
+                "settings": {
+                    "foreground": "#CE9178" //change to your preference
+                }
+            }
+        ]
+    },
+    "editor.rulers": [
+        80,
+        100,
+        120
+    ],
+}

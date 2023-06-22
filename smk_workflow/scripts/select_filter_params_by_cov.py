@@ -3,45 +3,9 @@ import sys
 from time import perf_counter as timer
 from timeit import timeit
 import statistics as stat
+import json
 import argparse
 
-
-# def fastq_autoscan(read_file):
-#     # from NoTramp
-#     """Scanning readfile to determine filetype"""
-#     # logger.debug("Scanning readfile to determine filetype")
-#     with open(read_file, "r", encoding="utf-8") as rfl:
-#         line_ct = 0
-#         fastq = False
-#         while line_ct < 100:
-#             for line in rfl:
-#                 line_ct += 1
-#                 if line.startswith("@"):
-#                     fastq = True
-#                     break
-#     return fastq
-
-
-# def load_reads(read_file, output_fq):
-#     # from NoTramp
-#     """load reads into memory"""
-#     # logger.info("loading reads")
-#     reads = {}
-#     fastq = fastq_autoscan(read_file)
-#     header_ind = "@" if fastq else ">"
-#     with open(read_file, "r", encoding="utf-8") as rfa:
-#         for line in rfa:
-#             if line.startswith(header_ind):
-#                 header = line.strip().split(" ")[0]
-#                 # alternatively use # id = line[1:].rstrip().split(" ")[0] # to grap only first part of id without header indicator
-#                 seq = next(rfa)
-#                 read = Read(header, seq.strip(), fastq=fastq)
-#                 if fastq:
-#                     if output_fq:
-#                         read.plus = next(rfa)
-#                         read.qstr = next(rfa).strip()
-#                 reads[read.name] = read
-#     return reads
 
 def get_args():
     parser = argparse.ArgumentParser()
@@ -62,6 +26,10 @@ def get_args():
     optional.add_argument(
         "-l", "--len",
         default=10000, help="Request read length aimed for [default=10000]", type=int
+    )
+    optional.add_argument(
+        "-o", "--out_dir",
+        default="", help="Define directory for results json file [default=current working directory]", type=str
     )
     optional.add_argument(
         "-decall", "--allow_reduction_all",
@@ -250,24 +218,13 @@ def run_cover_up():
     args = get_args()
     reads = parse_and_analyze_fastq(args.fastq)
     rqual, rlen = optimize_selection(reads, args.cov, args.genome_size, args.qual, args.len, args)
+    print(f"Final values: rqual={rqual}, rlen={rlen}")
+    out_file = os.path.join(os.path.split(args.fastq)[0], "filt_params.json")
+    with open(out_file, "w") as out:
+        data = json.dumps({"len": rlen, "qual": rqual})
+        out.write(data)
     return rqual, rlen
 
-
-
-
-
 if __name__ == "__main__":
-    # fastq = sys.argv[1]
-    # target_cov = int(sys.argv[2])
-    # genome_size = int(sys.argv[3])
-    # req_qual = float(sys.argv[4])
-    # req_size = int(sys.argv[5])
-
-    # time_all = timeit("parse_and_analyze_fastq('/homes/simon/Nanopore_only_assembly_and_polishing/smk_workflow/data/SM0014_HCMV_Voigt_fastq_pass/test/FAP13535_pass_barcode01_3289717d_56e0e8e2_0.fastq')", number=20, globals=globals())
-    # print(time_all)
-
-    # args = get_args()
-    # reads = parse_and_analyze_fastq(args.fastq)
-    # optimize_selection(reads, args.cov, args.genome_size, args.qual, args.len, args)
     rqual, rlen = run_cover_up()
-    print(f"Final values: rqual={rqual}, rlen={rlen}")
+    

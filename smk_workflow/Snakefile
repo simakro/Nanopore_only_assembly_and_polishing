@@ -1,26 +1,31 @@
+import os
 
 EXPERIMENTS = ["SM0014_HCMV_Voigt_fastq_pass"]
-BARCODES = [
-    "barcode01",
-    "barcode02",
-    "barcode03",
-    "barcode04",
-    # "barcode05",
-    "barcode06",
-    "barcode07",
-    # "barcode08",
-    "barcode09",
-    ]
-# BARCODES = ["test"]
+# BARCODES = [
+#     "barcode01",
+#     "barcode02",
+#     "barcode03",
+#     "barcode04",
+#     "barcode05",
+#     "barcode06",
+#     "barcode07",
+#     "barcode08",
+#     "barcode09",
+#     ]
+BARCODES = ["test1", "test2"]
 ASSEMBLERS = ["canu", "flye"]
+GENOME_SIZE = 230000
 
 
 def get_draft_asm(wildcards):
+    print("Assembler:", wildcards.assembler)
     if wildcards.assembler == "canu":
-        # print("Assembler = Canu")
-        return f"results/{wildcards.experiment}/{wildcards.barcode}/{wildcards.assembler}/{wildcards.experiment}_{wildcards.barcode}_canu.contigs.fasta"
+        print(f"results/{wildcards.experiment}/{wildcards.barcode}/canu/{wildcards.experiment}_{wildcards.barcode}_canu.contigs.fasta")
+        # return f"results/{wildcards.experiment}/{wildcards.barcode}/{wildcards.assembler}/{wildcards.experiment}_{wildcards.barcode}_canu.contigs.fasta"
+        return f"results/{wildcards.experiment}/{wildcards.barcode}/canu/{wildcards.experiment}_{wildcards.barcode}_canu.contigs.fasta"
     elif wildcards.assembler == "flye":
         # print("Assembler = Flye")
+        print(f"results/{wildcards.experiment}/{wildcards.barcode}/flye/assembly.fasta")
         return f"results/{wildcards.experiment}/{wildcards.barcode}/flye/assembly.fasta"
     else:
         print("WARNING: No assembler in wildcards. Defaulting to canu.")
@@ -33,7 +38,8 @@ rule all:
         expand("results/{experiment}/{barcode}/prokka_medaka_{assembler}_genusdb/{experiment}_{barcode}_{assembler}_prokka_genusdb.tsv", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk/{experiment}_{barcode}_{assembler}_prokka_protgbk.tsv", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/homopolish_medaka_{assembler}/consensus_homopolished.fasta", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
-        expand("results/{experiment}/{barcode}/busco_medaka_{assembler}/run_herpesviridae_odb10/short_summary.json", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS)
+        expand("results/{experiment}/{barcode}/busco_medaka_{assembler}/run_herpesviridae_odb10/short_summary.json", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
+        expand("results/{experiment}/{barcode}/filt_params.json", experiment=EXPERIMENTS, barcode=BARCODES)
 
 
 rule preprocessing:
@@ -49,9 +55,25 @@ rule preprocessing:
         "python scripts/preprocessing.py {input} {wildcards.experiment} {output} 2>&1 > {log}"
 
 
-rule filter_readlength:
+rule optimize_filter:
     input:
         "results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq"
+    params:
+        genSize=GENOME_SIZE
+    output:
+        "results/{experiment}/{barcode}/filt_params.json"
+    log:
+        "logs/{experiment}/{barcode}/filter_parameter_optimization.log"
+    conda:
+        "envs/python3.yaml"
+    shell:
+        "python scripts/select_filter_params_by_cov.py -f {input} -s {params.genSize} -decall" #2>&1 > {log}
+
+
+rule filter_readlength:
+    input:
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq"# ,
+        # "results/{experiment}/{barcode}/{experiment}_{barcode}_all_filt_params.json"
     params:
         minlen="20000"
     output:
@@ -61,7 +83,7 @@ rule filter_readlength:
     conda:
         "envs/bbmap.yaml"
     shell:
-        "bbduk.sh in={input} out={output} minlen={params.minlen} 2>&1 > {log}"
+        "bbduk.sh in={input[0]} out={output} minlen={params.minlen} 2>&1 > {log}"
 
 
 rule filter_readqual:
@@ -103,7 +125,8 @@ rule assemble_canu:
         "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta"
     output:
         outdir=directory("results/{experiment}/{barcode}/canu"),
-        contigs="results/{experiment}/{barcode}/canu/{experiment}_{barcode}_canu.contigs.fasta"
+        contigs="results/{experiment}/{barcode}/canu/{experiment}_{barcode}_canu.contigs.fasta",
+        flag = "results/{experiment}/{barcode}/canu/canu.flag"
     params:
         genomeSize=230000,
         useGrid="False"
@@ -114,7 +137,7 @@ rule assemble_canu:
     conda:
         "envs/canu.yaml"
     shell:
-        "canu -nanopore {input} -p {wildcards.experiment}_{wildcards.barcode}_canu -d {output.outdir} genomeSize={params.genomeSize} useGrid={params.useGrid} 2>&1 > {log}"
+        "canu -nanopore {input} -p {wildcards.experiment}_{wildcards.barcode}_canu -d {output.outdir} genomeSize={params.genomeSize} useGrid={params.useGrid} 2>&1 > {log} && touch {output.flag}"
 
 
 # rule polish_canu_nextpolish:
@@ -139,7 +162,8 @@ rule assemble_flye:
         "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta"
     output:
         outdir=directory("results/{experiment}/{barcode}/flye"),
-        outfile="results/{experiment}/{barcode}/flye/assembly.fasta"
+        outfile="results/{experiment}/{barcode}/flye/assembly.fasta",
+        flag = "results/{experiment}/{barcode}/flye/flye.flag"
     params:
         genomeSize=230000,
         useGrid="False"
@@ -150,13 +174,14 @@ rule assemble_flye:
     conda:
         "envs/flye.yaml"
     shell:
-        "flye --nano-hq {input} -o {output.outdir} -g {params.genomeSize} -t {threads} 2>&1 > {log}"
+        "flye --nano-hq {input} -o {output.outdir} -g {params.genomeSize} -t {threads} 2>&1 > {log} && touch {output.flag}"
 
 
 rule polish_medaka:
     input:
         reads="results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta",
-        draft_asm=get_draft_asm
+        asm_flag = "results/{experiment}/{barcode}/{assembler}/{assembler}.flag",
+        draft_asm = get_draft_asm
     output:
         outdir=directory("results/{experiment}/{barcode}/medaka_{assembler}"),
         consensus="results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta"

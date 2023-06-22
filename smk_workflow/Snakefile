@@ -5,12 +5,13 @@ BARCODES = [
     "barcode02",
     "barcode03",
     "barcode04",
-    "barcode05",
+    # "barcode05",
     "barcode06",
     "barcode07",
-    "barcode08",
+    # "barcode08",
     "barcode09",
     ]
+# BARCODES = ["test"]
 ASSEMBLERS = ["canu", "flye"]
 
 
@@ -77,6 +78,12 @@ rule filter_readqual:
     shell:
         "bbduk.sh in={input} out={output} maq={params.minqual} 1> {log}"
 
+# maybe implement a rule including trimming of 10 bases at start and end of each
+# read for quality trimming without individual examination; bulk examination has
+# shown that the first 10 bases at start and end are of significantly lower qual
+# ity than the rest; However, such a step would inevitable lead to the loss of
+# at least that amount of bases at the start and end of the assembly for linear 
+# genomes
 
 rule porechop_barcodes_and_adapters:
     input:
@@ -183,7 +190,7 @@ rule homopolish: # Reference guided/based polishing without read information and
 rule prokka:
     input:
         asm="results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta",
-        prot_gbk="data/KP202868.1_Murid_herpesvirus_8_isolate_Berlin.gbk"
+        prot_gbk="resources/KP202868.1_Murid_herpesvirus_8_isolate_Berlin.gbk"
     output:
         genusdb_dir=directory("results/{experiment}/{barcode}/prokka_medaka_{assembler}_genusdb"),
         protgbk_dir=directory("results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk"),

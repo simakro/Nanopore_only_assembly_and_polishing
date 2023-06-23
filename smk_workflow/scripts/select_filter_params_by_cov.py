@@ -5,6 +5,7 @@ from timeit import timeit
 import statistics as stat
 import json
 import argparse
+from math import log
 
 
 def get_args():
@@ -29,8 +30,18 @@ def get_args():
     )
     optional.add_argument(
         "-o", "--out_dir",
-        default="", help="Define directory for results json file [default=current working directory]", type=str
+        default="", help="Define directory for results json (& dumped reads if set) file [default=current working directory]", type=str
     )
+    optional.add_argument(
+        "-d", "--dump",
+        default=False, choices=["fasta", "fastq"],
+        help="Set this flag to dump the selected reads in a file of chosen format. [default=False; choices=(fastq/fasta)]",
+        # action="store_true"
+    )
+    # optional.add_argument(
+    #     "-ofmt", "--out_format",
+    #     default="fastq", help="Set output format for dumped reads. [default=fastq]", type=str
+    # )
     optional.add_argument(
         "-decall", "--allow_reduction_all",
         default=False, help="Allow to reduce requested read length and quality parameters until requested coverage is reached [default=False]", 
@@ -66,104 +77,142 @@ def get_args():
 
 
 
-def parse_and_analyze_fastq_org(fastq):
-    fstart = timer()
-    bases = ["A", "T", "G", "C"]
-    ascii_chars =  "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
-    qchars = set(ascii_chars)
-    qchar_dict = {str(q): ord(q)-33 for q in qchars}
+# def parse_and_analyze_fastq_org(fastq):
+#     fstart = timer()
+#     bases = ["A", "T", "G", "C"]
+#     ascii_chars =  "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+#     qchars = set(ascii_chars)
+#     qchar_dict = {str(q): ord(q)-33 for q in qchars}
 
-    used_qchars = set()
-    av_read_quality = []
-    start_baseq = {num+1:list() for num in range(100)}
-    # print(start_baseq)
-    end_baseq = {-(num+1):list() for num in range(100)}
-    # print(end_baseq)
+#     used_qchars = set()
+#     av_read_quality = []
+#     start_baseq = {num+1:list() for num in range(100)}
+#     # print(start_baseq)
+#     end_baseq = {-(num+1):list() for num in range(100)}
+#     # print(end_baseq)
 
-    # fastq must be in single-line format for this to work
-    with open(fastq, "r") as fq:
-        header = False
-        seq_line = False
-        qstring = False
-        for line in fq:
-            if line.startswith("@") and not qstring:
-                header = True
-                qstring = False
-            elif line == ("+\n") and seq_line:
-                seq_line = False
-                qstring = True
-            elif line[0].upper() in bases and header: # fastq must be in single-line format for this to work
-                header = False
-                seq_line = True
-            elif line[0] in qchars and qstring:
-                qstring = False # fastq must be in single-line format for this to work
-                lset = set(line.strip())
-                used_qchars = used_qchars.union(lset)
-                lq = [ord(c)-33 for c in line.strip()]
-                for n in range(len(lq[:100])):
-                    start_baseq[n+1].append(lq[n])
-                for n in range(len(lq[:100])):
-                    end_baseq[-(n+1)].append(lq[-(n+1)])
-                mean_qs = stat.mean(lq)
-                av_read_quality.append(mean_qs)
+#     # fastq must be in single-line format for this to work
+#     with open(fastq, "r") as fq:
+#         header = False
+#         seq_line = False
+#         qstring = False
+#         for line in fq:
+#             if line.startswith("@") and not qstring:
+#                 header = True
+#                 qstring = False
+#             elif line == ("+\n") and seq_line:
+#                 seq_line = False
+#                 qstring = True
+#             elif line[0].upper() in bases and header: # fastq must be in single-line format for this to work
+#                 header = False
+#                 seq_line = True
+#             elif line[0] in qchars and qstring:
+#                 qstring = False # fastq must be in single-line format for this to work
+#                 lset = set(line.strip())
+#                 used_qchars = used_qchars.union(lset)
+#                 lq = [ord(c)-33 for c in line.strip()]
+#                 for n in range(len(lq[:100])):
+#                     start_baseq[n+1].append(lq[n])
+#                 for n in range(len(lq[:100])):
+#                     end_baseq[-(n+1)].append(lq[-(n+1)])
+#                 mean_qs = stat.mean(lq)
+#                 av_read_quality.append(mean_qs)
                 
-    av_quality_reads = stat.mean(av_read_quality)
-    sd_qual_reads = stat.stdev(av_read_quality)
+#     av_quality_reads = stat.mean(av_read_quality)
+#     sd_qual_reads = stat.stdev(av_read_quality)
 
 
-    print(f"Average read quality = {av_quality_reads}")
-    print(f"SD read quality = {sd_qual_reads}")
-    for n in start_baseq:
-        start_baseq[n] = stat.mean(start_baseq[n])
-    print(f"Average start_baseq for all reads: {start_baseq}")
-    for n in end_baseq:
-        end_baseq[n] = stat.mean(end_baseq[n])
-    print(f"Average end_baseq for all reads: {end_baseq}")
-    fend = timer()
-    print(f"Runtime {parse_and_analyze_fastq_org.__name__}: {fend-fstart}")
-    # print(sorted(qchar_dict.items()))
+#     print(f"Average read quality = {av_quality_reads}")
+#     print(f"SD read quality = {sd_qual_reads}")
+#     for n in start_baseq:
+#         start_baseq[n] = stat.mean(start_baseq[n])
+#     print(f"Average start_baseq for all reads: {start_baseq}")
+#     for n in end_baseq:
+#         end_baseq[n] = stat.mean(end_baseq[n])
+#     print(f"Average end_baseq for all reads: {end_baseq}")
+#     fend = timer()
+#     print(f"Runtime {parse_and_analyze_fastq_org.__name__}: {fend-fstart}")
+#     # print(sorted(qchar_dict.items()))
 
-    return  start_baseq, end_baseq
+#     return  start_baseq, end_baseq
 
 
 class Read():
-    def __init__(self, len: int, av_qual: float):
+    def __init__(self, header: str, len: int, av_qual: float):
+        self.header = header
         self.qual = av_qual
         self.len = len
 
 
-def parse_and_analyze_fastq(fastq):
+def parse_fastq(fastq: str, analyze=True, search_lst=False, outfile=False, outfmt=False) -> list:
     fstart = timer()
-    bases = ["A", "T", "G", "C"]
+    # bases = ["A", "T", "G", "C", "N"]
+    bases = ["A", "T", "G", "C", "N", "a", "t", "g", "c", "n"]
     ascii_chars =  "!\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
     qchars = set(ascii_chars)
-    qchar_dict = {str(q): ord(q)-33 for q in qchars}
+    qchar_dict = {str(qc): ord(qc)-33 for qc in qchars}
+    err_prob = {qc:10**(-qs/10) for qc,qs in qchar_dict.items()}
 
     reads = []
 
-    # fastq must be in single-line format for this to work
+    if search_lst:
+        if not outfile:
+            print(
+                "No outfile defined. If parse_fastq is used in search mode, outfile must be provided."
+                )
+            sys.exit()
+        else:
+            search_lst = [r.header for r in search_lst]
+            out = open(outfile, "w")
+
     with open(fastq, "r") as fq:
+        curr_header = None
+        curr_seqline = None
         header = False
         seq_line = False
         qstring = False
+        dump = False
         for line in fq:
             if line.startswith("@") and not qstring:
+                curr_header = line
                 header = True
                 qstring = False
+                if search_lst:
+                    if curr_header in search_lst:
+                        dump = True
+                    else:
+                        dump = False
             elif line == ("+\n") and seq_line:
                 seq_line = False
                 qstring = True
-            elif line[0].upper() in bases and header: # fastq must be in single-line format for this to work
+            elif line[0] in bases and header:
                 header = False
                 seq_line = True
+                if dump:
+                    curr_seqline = line
             elif line[0] in qchars and qstring:
-                qstring = False # fastq must be in single-line format for this to work
-                lq = [qchar_dict[c] for c in line.strip()]
-                mean_qs = sum(lq)/len(lq)
-                reads.append(Read(len(lq), mean_qs))
+                line = line.strip()
+                qstring = False
+                if analyze:
+                    lq = [err_prob[q] for q in line.strip()]
+                    mean_qs = -10 * log(sum(lq)/len(lq), 10)
+                    reads.append(Read(curr_header, len(line), mean_qs))
+                if dump:
+                    if outfmt=="fastq":
+                        out.write(curr_header)
+                        out.write(curr_seqline)
+                        out.write("+\n")
+                        out.write(line + "\n")
+                    else:
+                        out.write(">" + curr_header[1:])
+                        out.write(curr_seqline)
+                    dump = False
+
+    if search_lst:
+        out.close()               
 
     fend = timer()
-    print(f"Runtime {parse_and_analyze_fastq.__name__}: {fend-fstart}")
+    print(f"Runtime {parse_fastq.__name__}: {fend-fstart}")
 
     return  reads
 
@@ -174,8 +223,9 @@ def optimize_selection(reads: list, target_cov: float, genome_size: int, req_qua
     #     args.len_stepsize = 100
     selection = [read for read in reads if read.len>=req_len and read.qual>=req_qual]
     total_bp = sum([read.len for read in selection])
+    read_num = len(selection)
     total_cov = total_bp/genome_size
-    print(f"total_cov {total_cov}, qual: {req_qual}, len: {req_len}")
+    print(f"total_cov: {total_cov},read_num: {read_num}, qual: {req_qual}, len: {req_len}")
     fend = timer()
     print(f"Runtime {optimize_selection.__name__}: {fend-fstart}")
     if total_cov < target_cov:
@@ -185,44 +235,53 @@ def optimize_selection(reads: list, target_cov: float, genome_size: int, req_qua
                     args.direction = "down"
                     print("More reads available for selection, decrementing len and qual parameters.")
                     print(req_qual-args.qual_stepsize, req_len-args.len_stepsize)
-                    req_qual, req_len = optimize_selection(reads, target_cov, genome_size, req_qual-args.qual_stepsize, req_len-args.len_stepsize, args)
-                    return req_qual, req_len
+                    req_qual, req_len, selection = optimize_selection(reads, target_cov, genome_size, req_qual-args.qual_stepsize, req_len-args.len_stepsize, args)
+                    return req_qual, req_len, selection
                 else:
                     print("Target coverage could not be reached with the set qual and len limits. If you want to allow downward adjustment of these parameters use the -decall/--allow_reduction_all flag.")
-                    return req_qual, req_len
+                    return req_qual, req_len, selection
             else:
                 print("Target coverage threshold was crossed during parameter optimization. Returning last good parameter set.")
-                return req_qual-args.qual_stepsize, req_len-args.len_stepsize
+                req_qual, req_len = req_qual-args.qual_stepsize, req_len-args.len_stepsize
+                selection = [read for read in reads if read.len>=req_len and read.qual>=req_qual]
+                return req_qual, req_len, selection
         else:
             print("All reads have been selected, but target coverage could not be reached")
             print(req_qual, req_len)
-            return req_qual, req_len
+            return req_qual, req_len, selection
     elif total_cov > target_cov:
         if args.direction=="down":
             print(f"Target coverage could be reached by decreasing selection parameters to qual: {req_qual}, len: {req_len}")
-            return req_qual, req_len
+            return req_qual, req_len, selection
         else:
             args.direction = "up"
             # incr_qual = optimize_selection(reads, target_cov, genome_size, req_qual+args.qual_increment, req_size)
             # incr_len = optimize_selection(reads, target_cov, genome_size, req_qual, req_size+args.len_increment)
             print(f"More coverage than requested {total_cov}/{target_cov}, incrementing len and qual parameters.")
-            req_qual, req_len = optimize_selection(reads, target_cov, genome_size, req_qual+args.qual_stepsize, req_len+args.len_stepsize, args)
+            req_qual, req_len, selection = optimize_selection(reads, target_cov, genome_size, req_qual+args.qual_stepsize, req_len+args.len_stepsize, args)
             # trials = [incr_qual, incr_len, incr_both]
-            return req_qual, req_len
+            return req_qual, req_len, selection
     else:
         print("Exactly reached target coverage")
-        return req_qual, req_len
+        return req_qual, req_len, selection
 
 
 def run_cover_up():
+    fstart = timer()
     args = get_args()
-    reads = parse_and_analyze_fastq(args.fastq)
-    rqual, rlen = optimize_selection(reads, args.cov, args.genome_size, args.qual, args.len, args)
+    reads = parse_fastq(args.fastq)
+    rqual, rlen, selection = optimize_selection(reads, args.cov, args.genome_size, args.qual, args.len, args)
     print(f"Final values: rqual={rqual}, rlen={rlen}")
     out_file = os.path.join(os.path.split(args.fastq)[0], "filt_params.json")
     with open(out_file, "w") as out:
         data = json.dumps({"len": rlen, "qual": rqual})
         out.write(data)
+    if args.dump:
+        file_name = ".".join(os.path.split(args.fastq)[1].split(".")[:-1]) + f"_sqfilt." + args.dump
+        reads_out = os.path.join(args.out_dir, file_name)
+        parse_fastq(args.fastq, analyze=False, search_lst=selection, outfile=reads_out, outfmt=args.dump)
+    fend = timer()
+    print(f"Total runtime {parse_fastq.__name__}: {fend-fstart}")
     return rqual, rlen
 
 if __name__ == "__main__":

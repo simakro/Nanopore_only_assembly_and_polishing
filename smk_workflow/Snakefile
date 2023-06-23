@@ -1,20 +1,22 @@
 import os
+import json
 
 EXPERIMENTS = ["SM0014_HCMV_Voigt_fastq_pass"]
-# BARCODES = [
-#     "barcode01",
-#     "barcode02",
-#     "barcode03",
-#     "barcode04",
-#     "barcode05",
-#     "barcode06",
-#     "barcode07",
-#     "barcode08",
-#     "barcode09",
-#     ]
-BARCODES = ["test1", "test2"]
+BARCODES = [
+    "barcode01",
+    "barcode02",
+    "barcode03",
+    "barcode04",
+    "barcode05",
+    "barcode06",
+    "barcode07",
+    "barcode08",
+    "barcode09",
+    ]
+# BARCODES = ["test1", "test2"]
 ASSEMBLERS = ["canu", "flye"]
-GENOME_SIZE = 230000
+GENOME_SIZE = 210000
+COVERAGE = 60
 
 
 def get_draft_asm(wildcards):
@@ -32,6 +34,24 @@ def get_draft_asm(wildcards):
         return "canu"
 
 
+def get_len_filt_param(wildcards):
+    param_json = f"results/{wildcards.experiment}/{wildcards.barcode}/filt_params.json"
+    with open(param_json, "r") as paraj:
+        data = paraj.read()
+        param_dct = json.loads(data)
+        print(param_dct.items())
+    return param_dct["len"]
+
+
+def get_qual_filt_param(wildcards):
+    param_json = f"results/{wildcards.experiment}/{wildcards.barcode}/filt_params.json"
+    with open(param_json, "r") as paraj:
+        data = paraj.read()
+        param_dct = json.loads(data)
+        print(param_dct.items())
+    return param_dct["qual"]
+
+
 rule all:
     input:
         # expand("results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
@@ -39,7 +59,7 @@ rule all:
         expand("results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk/{experiment}_{barcode}_{assembler}_prokka_protgbk.tsv", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/homopolish_medaka_{assembler}/consensus_homopolished.fasta", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/busco_medaka_{assembler}/run_herpesviridae_odb10/short_summary.json", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
-        expand("results/{experiment}/{barcode}/filt_params.json", experiment=EXPERIMENTS, barcode=BARCODES)
+        # expand("results/{experiment}/{barcode}/filt_params.json", experiment=EXPERIMENTS, barcode=BARCODES)
 
 
 rule preprocessing:
@@ -55,50 +75,73 @@ rule preprocessing:
         "python scripts/preprocessing.py {input} {wildcards.experiment} {output} 2>&1 > {log}"
 
 
-rule optimize_filter:
+rule opt_read_filter:
     input:
         "results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq"
     params:
-        genSize=GENOME_SIZE
+        genSize = GENOME_SIZE,
+        cov= COVERAGE
     output:
-        "results/{experiment}/{barcode}/filt_params.json"
+        # "results/{experiment}/{barcode}/filt_params.json"
+        outdir=directory("results/{experiment}/{barcode}"),
+        outfile="results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fastq"
     log:
-        "logs/{experiment}/{barcode}/filter_parameter_optimization.log"
+        "logs/{experiment}/{barcode}/filter_optimization.log"
     conda:
         "envs/python3.yaml"
     shell:
-        "python scripts/select_filter_params_by_cov.py -f {input} -s {params.genSize} -decall" #2>&1 > {log}
+        "python scripts/select_filter_params_by_cov.py -f {input} -s {params.genSize} -c {params.cov} --dump fastq -o {params.outdir} -decall" #2>&1 > {log}
 
 
-rule filter_readlength:
-    input:
-        "results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq"# ,
-        # "results/{experiment}/{barcode}/{experiment}_{barcode}_all_filt_params.json"
-    params:
-        minlen="20000"
-    output:
-        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sizefilt.fastq"
-    log:
-        "logs/{experiment}/{barcode}/size_filter.log"
-    conda:
-        "envs/bbmap.yaml"
-    shell:
-        "bbduk.sh in={input[0]} out={output} minlen={params.minlen} 2>&1 > {log}"
+# rule filter_readlength:
+#     input:
+#         "results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq",
+#         "results/{experiment}/{barcode}/filt_params.json"
+#     params:
+#         minlen="15000"
+#         # minlen = get_len_filt_param
+#     output:
+#         "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sizefilt.fastq"
+#     log:
+#         "logs/{experiment}/{barcode}/size_filter.log"
+#     conda:
+#         "envs/bbmap.yaml"
+#     shell:
+#         "bbduk.sh in={input[0]} out={output} minlen={params.minlen} 2>&1 > {log}"
 
 
-rule filter_readqual:
-    input:
-        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sizefilt.fastq"
-    params:
-        minqual="14"
-    output:
-        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fastq"
-    log:
-        "logs/{experiment}/{barcode}/qual_filter.log"
-    conda:
-        "envs/bbmap.yaml"
-    shell:
-        "bbduk.sh in={input} out={output} maq={params.minqual} 1> {log}"
+# rule filter_readqual:
+#     input:
+#         "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sizefilt.fastq"
+#     params:
+#         # minqual="14"
+#         minqual = get_qual_filt_param
+#     output:
+#         "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fastq"
+#     log:
+#         "logs/{experiment}/{barcode}/qual_filter.log"
+#     conda:
+#         "envs/bbmap.yaml"
+#     shell:
+#         "bbduk.sh in={input} out={output} maq={params.minqual} 1> {log}"
+
+
+# rule filter_reads_len_qual:
+#     input:
+#         "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sizefilt.fastq"
+#     params:
+#         minlen = 15000,
+#         minqual=15
+#         # minlen = get_len_filt_param,
+#         # minqual = get_qual_filt_param
+#     output:
+#         "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fastq"
+#     log:
+#         "logs/{experiment}/{barcode}/filter_len_qual.log"
+#     conda:
+#         "envs/bbmap.yaml"
+#     shell:
+#         "bbduk.sh in={input} out={output} maq={params.minqual} minlen={params.minlen} > {log}"
 
 # maybe implement a rule including trimming of 10 bases at start and end of each
 # read for quality trimming without individual examination; bulk examination has
@@ -125,10 +168,10 @@ rule assemble_canu:
         "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta"
     output:
         outdir=directory("results/{experiment}/{barcode}/canu"),
-        contigs="results/{experiment}/{barcode}/canu/{experiment}_{barcode}_canu.contigs.fasta",
-        flag = "results/{experiment}/{barcode}/canu/canu.flag"
+        contigs="results/{experiment}/{barcode}/canu/{experiment}_{barcode}_canu.contigs.fasta"# ,
+        # flag = "results/{experiment}/{barcode}/canu/canu.flag"
     params:
-        genomeSize=230000,
+        genomeSize=GENOME_SIZE,
         useGrid="False"
     # threads:
     #     16
@@ -137,7 +180,7 @@ rule assemble_canu:
     conda:
         "envs/canu.yaml"
     shell:
-        "canu -nanopore {input} -p {wildcards.experiment}_{wildcards.barcode}_canu -d {output.outdir} genomeSize={params.genomeSize} useGrid={params.useGrid} 2>&1 > {log} && touch {output.flag}"
+        "canu -nanopore {input} -p {wildcards.experiment}_{wildcards.barcode}_canu -d {output.outdir} genomeSize={params.genomeSize} useGrid={params.useGrid} 2>&1 > {log}" # && touch {output.flag}"
 
 
 # rule polish_canu_nextpolish:
@@ -162,8 +205,8 @@ rule assemble_flye:
         "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta"
     output:
         outdir=directory("results/{experiment}/{barcode}/flye"),
-        outfile="results/{experiment}/{barcode}/flye/assembly.fasta",
-        flag = "results/{experiment}/{barcode}/flye/flye.flag"
+        outfile="results/{experiment}/{barcode}/flye/assembly.fasta" #,
+        # flag = "results/{experiment}/{barcode}/flye/flye.flag"
     params:
         genomeSize=230000,
         useGrid="False"
@@ -174,13 +217,13 @@ rule assemble_flye:
     conda:
         "envs/flye.yaml"
     shell:
-        "flye --nano-hq {input} -o {output.outdir} -g {params.genomeSize} -t {threads} 2>&1 > {log} && touch {output.flag}"
+        "flye --nano-hq {input} -o {output.outdir} -g {params.genomeSize} -t {threads} 2>&1 > {log}" # " && touch {output.flag}"
 
 
 rule polish_medaka:
     input:
         reads="results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta",
-        asm_flag = "results/{experiment}/{barcode}/{assembler}/{assembler}.flag",
+        # asm_flag = "results/{experiment}/{barcode}/{assembler}/{assembler}.flag",
         draft_asm = get_draft_asm
     output:
         outdir=directory("results/{experiment}/{barcode}/medaka_{assembler}"),

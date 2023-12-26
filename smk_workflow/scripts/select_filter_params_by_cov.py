@@ -28,10 +28,10 @@ def get_args():
         "-l", "--len",
         default=10000, help="Request read length aimed for [default=10000]", type=int
     )
-    optional.add_argument(
-        "-o", "--out_dir",
-        default="", help="Define directory for results json (& dumped reads if set) file [default=current working directory]", type=str
-    )
+    # optional.add_argument(
+    #     "-o", "--out_dir",
+    #     default="", help="Define directory for results json (& dumped reads if set) file [default=current working directory]", type=str
+    # )
     optional.add_argument(
         "-d", "--dump",
         default=False, choices=["fasta", "fastq"],
@@ -278,7 +278,7 @@ def run_cover_up():
         out.write(data)
     if args.dump:
         file_name = ".".join(os.path.split(args.fastq)[1].split(".")[:-1]) + f"_sqfilt." + args.dump
-        reads_out = os.path.join(args.out_dir, file_name)
+        reads_out = os.path.join(os.path.split(args.fastq)[0], file_name)
         parse_fastq(args.fastq, analyze=False, search_lst=selection, outfile=reads_out, outfmt=args.dump)
     fend = timer()
     print(f"Total runtime {parse_fastq.__name__}: {fend-fstart}")

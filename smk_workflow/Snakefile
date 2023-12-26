@@ -1,22 +1,29 @@
 import os
 import json
 
-EXPERIMENTS = ["SM0014_HCMV_Voigt_fastq_pass"]
+# EXPERIMENTS = ["SM0014_HCMV_Voigt_fastq_pass"]
+EXPERIMENTS = ["SM0026_bacterial_genomes_KP"]
 BARCODES = [
-    "barcode01",
+    # "barcode01",
     "barcode02",
-    "barcode03",
-    "barcode04",
-    "barcode05",
-    "barcode06",
-    "barcode07",
-    "barcode08",
-    "barcode09",
+    # "barcode03",
+    # "barcode04",
+    # "barcode05",
+    # "barcode06",
+    # "barcode07",
+    # "barcode08",
+    # "barcode09",
     ]
 # BARCODES = ["test1", "test2"]
 ASSEMBLERS = ["canu", "flye"]
-GENOME_SIZE = 210000
-COVERAGE = 60
+#  GENOME_SIZE = 210000
+GENOME_SIZE = 3000000
+COVERAGE = 50
+# REFERENCE = "KP202868.1_Murid_herpesvirus_8_isolate_Berlin"
+REFERENCE = "GCF_000024285.1_ASM2428v1_genomic_Alicyclobacillus_acidocaldarius.fna"
+REFERENCE, REF_EXT = ".".join(REFERENCE.split(".")[:-1]), REFERENCE.split(".")[-1]
+# BUSCO_GENUS = "herpesviridae"
+BUSCO_GENUS = "bacteria"
 
 
 def get_draft_asm(wildcards):
@@ -52,15 +59,24 @@ def get_qual_filt_param(wildcards):
     return param_dct["qual"]
 
 
+def get_busco_graph_outdir(wildcards):
+    # return os.path.split(wildcards.input)[0]
+    outdir = f"results/{wildcards.experiment}/busco_graph_{wildcards.assembler}"
+    print(outdir)
+    return outdir
+
+
 rule all:
     input:
-        # expand("results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
+        # # expand("results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/prokka_medaka_{assembler}_genusdb/{experiment}_{barcode}_{assembler}_prokka_genusdb.tsv", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk/{experiment}_{barcode}_{assembler}_prokka_protgbk.tsv", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/homopolish_medaka_{assembler}/consensus_homopolished.fasta", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
-        expand("results/{experiment}/{barcode}/busco_medaka_{assembler}/run_herpesviridae_odb10/short_summary.json", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
-        # expand("results/{experiment}/{barcode}/filt_params.json", experiment=EXPERIMENTS, barcode=BARCODES)
-
+        # # expand("results/{experiment}/{barcode}/busco_medaka_{assembler}/run_herpesviridae_odb10/short_summary.json", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
+        # expand("results/{experiment}/{barcode}/busco_medaka_{assembler}/run_alicyclobacillus_odb10/short_summary.json", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
+        # # expand("results/{experiment}/{barcode}/filt_params.json", experiment=EXPERIMENTS, barcode=BARCODES)
+        # f"results/{REFERENCE}/run_alicyclobacillus_odb10/short_summary.json",
+        # expand("results/{experiment}/busco_graph_{assembler}/busco_figure.png", experiment=EXPERIMENTS, assembler=ASSEMBLERS)
 
 rule preprocessing:
     input:
@@ -82,15 +98,13 @@ rule opt_read_filter:
         genSize = GENOME_SIZE,
         cov= COVERAGE
     output:
-        # "results/{experiment}/{barcode}/filt_params.json"
-        outdir=directory("results/{experiment}/{barcode}"),
-        outfile="results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fastq"
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fastq"
     log:
         "logs/{experiment}/{barcode}/filter_optimization.log"
     conda:
         "envs/python3.yaml"
     shell:
-        "python scripts/select_filter_params_by_cov.py -f {input} -s {params.genSize} -c {params.cov} --dump fastq -o {params.outdir} -decall" #2>&1 > {log}
+        "python scripts/select_filter_params_by_cov.py -f {input} -s {params.genSize} -c {params.cov} --dump fastq -decall" #2>&1 > {log}
 
 
 # rule filter_readlength:
@@ -173,14 +187,14 @@ rule assemble_canu:
     params:
         genomeSize=GENOME_SIZE,
         useGrid="False"
-    # threads:
-    #     16
+    threads:
+        16
     log:
         "logs/{experiment}/{barcode}/canu.log"
     conda:
         "envs/canu.yaml"
     shell:
-        "canu -nanopore {input} -p {wildcards.experiment}_{wildcards.barcode}_canu -d {output.outdir} genomeSize={params.genomeSize} useGrid={params.useGrid} 2>&1 > {log}" # && touch {output.flag}"
+        "canu -nanopore {input} -p {wildcards.experiment}_{wildcards.barcode}_canu -d {output.outdir} genomeSize={params.genomeSize} maxThreads={threads} useGrid={params.useGrid} 2>&1 > {log}" # && touch {output.flag}"
 
 
 # rule polish_canu_nextpolish:
@@ -241,7 +255,8 @@ rule polish_medaka:
 rule homopolish: # Reference guided/based polishing without read information and may conceal variants! Assumes close homology (hence the name) between ref and sample.
     input:
         asm="results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta",
-        ref="resources/KP202868.1_Murid_herpesvirus_8_isolate_Berlin.fa"
+        # ref="resources/KP202868.1_Murid_herpesvirus_8_isolate_Berlin.fa"
+        ref= f"resources/{REFERENCE}.{REF_EXT}"
     output:
         outdir = directory("results/{experiment}/{barcode}/homopolish_medaka_{assembler}"),
         outfile= "results/{experiment}/{barcode}/homopolish_medaka_{assembler}/consensus_homopolished.fasta"
@@ -258,7 +273,8 @@ rule homopolish: # Reference guided/based polishing without read information and
 rule prokka:
     input:
         asm="results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta",
-        prot_gbk="resources/KP202868.1_Murid_herpesvirus_8_isolate_Berlin.gbk"
+        # prot_gbk="resources/KP202868.1_Murid_herpesvirus_8_isolate_Berlin.gbk"
+        prot_gbk=f"resources/{REFERENCE}.gbk"
     output:
         genusdb_dir=directory("results/{experiment}/{barcode}/prokka_medaka_{assembler}_genusdb"),
         protgbk_dir=directory("results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk"),
@@ -278,10 +294,47 @@ rule busco:
         asm="results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta"
     output:
         outdir=directory("results/{experiment}/{barcode}/busco_medaka_{assembler}"),
-        outfile="results/{experiment}/{barcode}/busco_medaka_{assembler}/run_herpesviridae_odb10/short_summary.json"
+        outfile="results/{experiment}/{barcode}/busco_medaka_{assembler}/run_bacteria_odb10/short_summary.json"
+    params:
+        BUSCO_GENUS
     log:
         "logs/{experiment}/{barcode}/prokka_medaka_{assembler}.log"
     conda:
         "envs/busco.yaml"
     shell:
-        "busco -i {input.asm} -l herpesviridae -o {output.outdir} -m genome -f"
+        "busco -i {input.asm} -l {params} -o {output.outdir} -m genome -f"
+
+
+rule busco_reference:
+    input:
+        f"resources/{REFERENCE}.{REF_EXT}",
+    output:
+        outdir=directory(f"results/{REFERENCE}"),
+        outfile=f"results/{REFERENCE}/run_{BUSCO_GENUS}_odb10/short_summary.json"
+    params:
+        BUSCO_GENUS
+    conda:
+        "envs/busco.yaml"
+    shell:
+        "busco -i {input} -l {params} -o {output.outdir} -m genome -f"
+
+
+rule collect_busco_summaries:
+    input:
+        f"results/{REFERENCE}/run_herpesviridae_odb10/short_summary.json"
+    output:
+
+
+rule busco_generate_plot:
+    input:
+        # ref_inf="results/{experiment}/busco_graph_{assembler}/short_summary.specific.herpesviridae_odb10.MuridHerpesvirus_8_Berlin.txt",
+        ref_inf="results/{experiment}/busco_graph_{assembler}/short_summary.specific.herpesviridae_odb10.MuridHerpesvirus_8_Berlin.txt",
+        outdir = get_busco_graph_outdir
+    output:
+        # outdir=directory("results/{experiment}/busco_graph_{assembler}"),
+        # outdir = get_busco_graph_outdir,
+        outfile="results/{experiment}/busco_graph_{assembler}/busco_figure.png"
+    conda:
+        "envs/busco.yaml"
+    shell:
+        "python scripts/busco_generate_plot.py -wd {input.outdir}"

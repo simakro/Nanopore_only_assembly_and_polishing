@@ -14,6 +14,9 @@ BARCODES = [
     # "barcode08",
     # "barcode09",
     ]
+SAMPLE_NAMES = {
+    "barcode02": "AP4a_Alicyclobacillus",
+}
 # BARCODES = ["test1", "test2"]
 ASSEMBLERS = ["canu", "flye"]
 #  GENOME_SIZE = 210000
@@ -73,10 +76,11 @@ rule all:
         expand("results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk/{experiment}_{barcode}_{assembler}_prokka_protgbk.tsv", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/homopolish_medaka_{assembler}/consensus_homopolished.fasta", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
         # # expand("results/{experiment}/{barcode}/busco_medaka_{assembler}/run_herpesviridae_odb10/short_summary.json", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
-        # expand("results/{experiment}/{barcode}/busco_medaka_{assembler}/run_alicyclobacillus_odb10/short_summary.json", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
+        expand("results/{experiment}/{barcode}/busco_medaka_{assembler}/run_{genus}_odb10/short_summary.json", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS, genus=BUSCO_GENUS),
         # # expand("results/{experiment}/{barcode}/filt_params.json", experiment=EXPERIMENTS, barcode=BARCODES)
         # f"results/{REFERENCE}/run_alicyclobacillus_odb10/short_summary.json",
         # expand("results/{experiment}/busco_graph_{assembler}/busco_figure.png", experiment=EXPERIMENTS, assembler=ASSEMBLERS)
+
 
 rule preprocessing:
     input:
@@ -106,56 +110,6 @@ rule opt_read_filter:
     shell:
         "python scripts/select_filter_params_by_cov.py -f {input} -s {params.genSize} -c {params.cov} --dump fastq -decall" #2>&1 > {log}
 
-
-# rule filter_readlength:
-#     input:
-#         "results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq",
-#         "results/{experiment}/{barcode}/filt_params.json"
-#     params:
-#         minlen="15000"
-#         # minlen = get_len_filt_param
-#     output:
-#         "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sizefilt.fastq"
-#     log:
-#         "logs/{experiment}/{barcode}/size_filter.log"
-#     conda:
-#         "envs/bbmap.yaml"
-#     shell:
-#         "bbduk.sh in={input[0]} out={output} minlen={params.minlen} 2>&1 > {log}"
-
-
-# rule filter_readqual:
-#     input:
-#         "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sizefilt.fastq"
-#     params:
-#         # minqual="14"
-#         minqual = get_qual_filt_param
-#     output:
-#         "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fastq"
-#     log:
-#         "logs/{experiment}/{barcode}/qual_filter.log"
-#     conda:
-#         "envs/bbmap.yaml"
-#     shell:
-#         "bbduk.sh in={input} out={output} maq={params.minqual} 1> {log}"
-
-
-# rule filter_reads_len_qual:
-#     input:
-#         "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sizefilt.fastq"
-#     params:
-#         minlen = 15000,
-#         minqual=15
-#         # minlen = get_len_filt_param,
-#         # minqual = get_qual_filt_param
-#     output:
-#         "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fastq"
-#     log:
-#         "logs/{experiment}/{barcode}/filter_len_qual.log"
-#     conda:
-#         "envs/bbmap.yaml"
-#     shell:
-#         "bbduk.sh in={input} out={output} maq={params.minqual} minlen={params.minlen} > {log}"
 
 # maybe implement a rule including trimming of 10 bases at start and end of each
 # read for quality trimming without individual examination; bulk examination has
@@ -195,23 +149,6 @@ rule assemble_canu:
         "envs/canu.yaml"
     shell:
         "canu -nanopore {input} -p {wildcards.experiment}_{wildcards.barcode}_canu -d {output.outdir} genomeSize={params.genomeSize} maxThreads={threads} useGrid={params.useGrid} 2>&1 > {log}" # && touch {output.flag}"
-
-
-# rule polish_canu_nextpolish:
-#     input:
-#         reads="results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta",
-#         draft_asm="results/{experiment}/{barcode}/canu/{experiment}_{barcode}_canu.contigs.fasta"
-#     output:
-#         outdir=directory("results/{experiment}/{barcode}/medaka_canu"),
-#         consensus="results/{experiment}/{barcode}/medaka_canu/consensus.fasta"
-#     log:
-#         "logs/{experiment}/{barcode}/medaka_canu.log"
-#     threads:
-#         16
-#     conda:
-#         "envs/medaka.yaml"
-#     shell:
-#         "medaka_consensus -i {input.reads} -d {input.draft_asm} -o {output.outdir} -t {threads} 2>&1 > {log}"
 
 
 rule assemble_flye:
@@ -319,21 +256,24 @@ rule busco_reference:
         "busco -i {input} -l {params} -o {output.outdir} -m genome -f"
 
 
-rule collect_busco_summaries:
-    input:
-        f"results/{REFERENCE}/run_herpesviridae_odb10/short_summary.json"
-    output:
+# rule collect_busco_summaries:
+#     input:
+#         f"results/{REFERENCE}/run_herpesviridae_odb10/short_summary.json"
+#     output:
 
 
 rule busco_generate_plot:
     input:
         # ref_inf="results/{experiment}/busco_graph_{assembler}/short_summary.specific.herpesviridae_odb10.MuridHerpesvirus_8_Berlin.txt",
-        ref_inf="results/{experiment}/busco_graph_{assembler}/short_summary.specific.herpesviridae_odb10.MuridHerpesvirus_8_Berlin.txt",
+        ref_inf="results/{experiment}/busco_graph_{assembler}/short_summary.specific.{BUSCO_GENUS}_odb10.{REFERENCE}.txt",
         outdir = get_busco_graph_outdir
     output:
         # outdir=directory("results/{experiment}/busco_graph_{assembler}"),
         # outdir = get_busco_graph_outdir,
         outfile="results/{experiment}/busco_graph_{assembler}/busco_figure.png"
+    params:
+        BUSCO_GENUS,
+        REFERENCE
     conda:
         "envs/busco.yaml"
     shell:

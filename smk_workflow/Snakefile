@@ -65,6 +65,8 @@ def get_qual_filt_param(wildcards):
 def get_busco_graph_outdir(wildcards):
     # return os.path.split(wildcards.input)[0]
     outdir = f"results/{wildcards.experiment}/busco_graph_{wildcards.assembler}"
+    if not os.path.exists(outdir):
+       os.mkdir(outdir)
     print(outdir)
     return outdir
 
@@ -76,7 +78,9 @@ rule all:
         expand("results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk/{experiment}_{barcode}_{assembler}_prokka_protgbk.tsv", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/homopolish_medaka_{assembler}/consensus_homopolished.fasta", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
         # # expand("results/{experiment}/{barcode}/busco_medaka_{assembler}/run_herpesviridae_odb10/short_summary.json", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
-        expand("results/{experiment}/{barcode}/busco_medaka_{assembler}/run_{genus}_odb10/short_summary.json", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS, genus=BUSCO_GENUS),
+        expand("results/{reference}/run_{genus}_odb10/short_summary.txt", reference=REFERENCE, genus=BUSCO_GENUS),
+        expand("results/{experiment}/{barcode}/busco_medaka_{assembler}/run_{genus}_odb10/short_summary.txt", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS, genus=BUSCO_GENUS),
+        expand("results/{experiment}/busco_graph_{assembler}/busco_figure.png", experiment=EXPERIMENTS, assembler=ASSEMBLERS)
         # # expand("results/{experiment}/{barcode}/filt_params.json", experiment=EXPERIMENTS, barcode=BARCODES)
         # f"results/{REFERENCE}/run_alicyclobacillus_odb10/short_summary.json",
         # expand("results/{experiment}/busco_graph_{assembler}/busco_figure.png", experiment=EXPERIMENTS, assembler=ASSEMBLERS)
@@ -231,49 +235,45 @@ rule busco:
         asm="results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta"
     output:
         outdir=directory("results/{experiment}/{barcode}/busco_medaka_{assembler}"),
-        outfile="results/{experiment}/{barcode}/busco_medaka_{assembler}/run_bacteria_odb10/short_summary.json"
+        outfile="results/{experiment}/{barcode}/busco_medaka_{assembler}/run_bacteria_odb10/short_summary.txt"
     params:
-        BUSCO_GENUS
+        genus=BUSCO_GENUS,
+        summary_dir=get_busco_graph_outdir
     log:
         "logs/{experiment}/{barcode}/prokka_medaka_{assembler}.log"
     conda:
         "envs/busco.yaml"
     shell:
-        "busco -i {input.asm} -l {params} -o {output.outdir} -m genome -f"
+        "busco -i {input.asm} -l {params.genus} -o {output.outdir} -m genome -f && cp {output.outfile} {params.summary_dir}"
 
 
 rule busco_reference:
     input:
-        f"resources/{REFERENCE}.{REF_EXT}",
+        expand("results/{experiment}/{barcode}/busco_medaka_{assembler}/run_{genus}_odb10/short_summary.txt", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS, genus=BUSCO_GENUS),
+        ref_genome = f"resources/{REFERENCE}.{REF_EXT}",
     output:
-        outdir=directory(f"results/{REFERENCE}"),
-        outfile=f"results/{REFERENCE}/run_{BUSCO_GENUS}_odb10/short_summary.json"
+        outdir=directory("results/{experiment}/{REFERENCE}"),
+        outfile=f"results/{REFERENCE}/run_{BUSCO_GENUS}_odb10/short_summary.txt"
     params:
-        BUSCO_GENUS
+        genus=BUSCO_GENUS,
+        summary_dir=get_busco_graph_outdir
     conda:
         "envs/busco.yaml"
     shell:
-        "busco -i {input} -l {params} -o {output.outdir} -m genome -f"
-
-
-# rule collect_busco_summaries:
-#     input:
-#         f"results/{REFERENCE}/run_herpesviridae_odb10/short_summary.json"
-#     output:
+        "busco -i {input.ref_genome} -l {params.genus} -o {output.outdir} -m genome -f && cp {output.outfile} {params.summary_dir}"
 
 
 rule busco_generate_plot:
     input:
         # ref_inf="results/{experiment}/busco_graph_{assembler}/short_summary.specific.herpesviridae_odb10.MuridHerpesvirus_8_Berlin.txt",
-        ref_inf="results/{experiment}/busco_graph_{assembler}/short_summary.specific.{BUSCO_GENUS}_odb10.{REFERENCE}.txt",
+        # ref_inf="results/{experiment}/busco_graph_{assembler}/short_summary.specific.{BUSCO_GENUS}_odb10.{REFERENCE}.txt",
+        # expand("results/{experiment}/{barcode}/busco_medaka_{assembler}/run_{genus}_odb10/short_summary.txt", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS, genus=BUSCO_GENUS),
+        expand("results/{reference}/run_{genus}_odb10/short_summary.txt", reference=REFERENCE, genus=BUSCO_GENUS),
         outdir = get_busco_graph_outdir
     output:
         # outdir=directory("results/{experiment}/busco_graph_{assembler}"),
         # outdir = get_busco_graph_outdir,
-        outfile="results/{experiment}/busco_graph_{assembler}/busco_figure.png"
-    params:
-        BUSCO_GENUS,
-        REFERENCE
+        "results/{experiment}/busco_graph_{assembler}/busco_figure.png"
     conda:
         "envs/busco.yaml"
     shell:

@@ -96,7 +96,7 @@ rule all:
         # expand("results/{experiment}/{barcode}/homopolish_medaka_{assembler}/consensus_homopolished.fasta", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
         # # expand("results/{experiment}/{barcode}/busco_medaka_{assembler}/run_herpesviridae_odb10/short_summary.json", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
         expand("results/{experiment}/{reference}/run_{genus}_odb10/short_summary.{reference}.txt", experiment=EXPERIMENTS, reference=REFERENCE, genus=BUSCO_GENUS),
-        expand("results/{experiment}/{barcode}/busco_medaka_{assembler}/run_{genus}_odb10/short_summary.txt", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS, genus=BUSCO_GENUS),
+        expand("results/{experiment}/{barcode}/busco_medaka_{assembler}/run_{genus}_odb10/short_summary.{barcode}.txt", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS, genus=BUSCO_GENUS),
         # expand("results/{experiment}/busco_graph_{assembler}/busco_figure.png", experiment=EXPERIMENTS, assembler=ASSEMBLERS)
         # # expand("results/{experiment}/{barcode}/filt_params.json", experiment=EXPERIMENTS, barcode=BARCODES)
         # f"results/{REFERENCE}/run_alicyclobacillus_odb10/short_summary.json",
@@ -254,16 +254,17 @@ rule busco:
         asm="results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta"
     output:
         outdir=directory("results/{experiment}/{barcode}/busco_medaka_{assembler}"),
-        outfile="results/{experiment}/{barcode}/busco_medaka_{assembler}/run_bacteria_odb10/short_summary.txt"
+        outfile="results/{experiment}/{barcode}/busco_medaka_{assembler}/run_bacteria_odb10/short_summary.{barcode}.txt"
     params:
         genus=BUSCO_GENUS,
+        tmp_out="results/{experiment}/{barcode}/busco_medaka_{assembler}/run_bacteria_odb10/short_summary.txt",
         summary_dir=get_busco_graph_outdir
     log:
         "logs/{experiment}/{barcode}/prokka_medaka_{assembler}.log"
     conda:
         "envs/busco.yaml"
     shell:
-        "busco -i {input.asm} -l {params.genus} -o {output.outdir} -m genome -f && cp {output.outfile} {params.summary_dir}"
+        "busco -i {input.asm} -l {params.genus} -o {output.outdir} -m genome -f && mv {params.tmp_out} {output.outfile} && cp {output.outfile} {params.summary_dir}"
 
 
 rule busco_reference:

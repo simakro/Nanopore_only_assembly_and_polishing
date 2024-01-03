@@ -184,8 +184,8 @@ rule assemble_canu:
         "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta"
     output:
         outdir=directory("results/{experiment}/{barcode}/canu"),
-        contigs="results/{experiment}/{barcode}/canu/{experiment}_{barcode}_canu.contigs.fasta"# ,
-        # flag = "results/{experiment}/{barcode}/canu/canu.flag"
+        contigs="results/{experiment}/{barcode}/canu/{experiment}_{barcode}_canu.contigs.fasta",
+        flag = "results/{experiment}/{barcode}/canu/canu.flag"
     params:
         genomeSize=GENOME_SIZE,
         useGrid="False"
@@ -196,7 +196,7 @@ rule assemble_canu:
     conda:
         "envs/canu.yaml"
     shell:
-        "canu -nanopore {input} -p {wildcards.experiment}_{wildcards.barcode}_canu -d {output.outdir} genomeSize={params.genomeSize} maxThreads={threads} useGrid={params.useGrid} 2>&1 > {log}" # && touch {output.flag}"
+        "canu -nanopore {input} -p {wildcards.experiment}_{wildcards.barcode}_canu -d {output.outdir} genomeSize={params.genomeSize} maxThreads={threads} useGrid={params.useGrid} 2>&1 > {log} && touch {output.flag}"
 
 
 rule assemble_flye:
@@ -204,8 +204,8 @@ rule assemble_flye:
         "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta"
     output:
         outdir=directory("results/{experiment}/{barcode}/flye"),
-        outfile="results/{experiment}/{barcode}/flye/assembly.fasta" #,
-        # flag = "results/{experiment}/{barcode}/flye/flye.flag"
+        outfile="results/{experiment}/{barcode}/flye/assembly.fasta",
+        flag = "results/{experiment}/{barcode}/flye/flye.flag"
     params:
         genomeSize=230000,
         useGrid="False"
@@ -216,7 +216,7 @@ rule assemble_flye:
     conda:
         "envs/flye.yaml"
     shell:
-        "flye --nano-hq {input} -o {output.outdir} -g {params.genomeSize} -t {threads} 2>&1 > {log}" # " && touch {output.flag}"
+        "flye --nano-hq {input} -o {output.outdir} -g {params.genomeSize} -t {threads} 2>&1 > {log} && touch {output.flag}"
 
 
 rule polish_medaka:

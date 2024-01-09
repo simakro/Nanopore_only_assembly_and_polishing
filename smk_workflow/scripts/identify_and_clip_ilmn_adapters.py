@@ -4,13 +4,17 @@ import gzip
 import argparse
 from time import perf_counter
 from collections import Counter, defaultdict
+import multiprocessing as mp
 
 
 def get_args():
     parser = argparse.ArgumentParser()
     required_args = parser.add_argument_group('Required arguments')
     required_args.add_argument(
-        "-r", "--read_file", required=True, help="Path to fastq file"
+        "-r", "--read_files", required=True, nargs="+",
+        help="Path to a single or two "
+        "paired fastq file/s (--r {file1} {file2}). Gzipped accepted. No "
+        "whitespaces in file paths/names allowed."
         )
     required_args.add_argument(
         "-a", "--adapters", required=True, help="Path to adapters fasta file"
@@ -70,9 +74,27 @@ def sl_fastq_generator(fastq):
                     )
 
 
-def chk_clip_ilmn_reads(args):
+# def evaluate_read_files(read_arg):
+#     read_files = read_arg.split(" ")
+#     print(read_files)
+def run_parallel_clipping(args):
+    read_fq = args.read_files
+    clip_jobs = []
+    for fq in read_fq:
+        clj = mp.Process(
+            target=chk_clip_ilmn_reads,
+            args=(fq, args),
+            # kwargs=kw_args
+            )
+        clip_jobs.append(clj)
+        clj.start()
+    for proc in clip_jobs:
+        proc.join()
+
+
+def chk_clip_ilmn_reads(read_fq, args):
     # set arguments
-    read_fq = args.read_file
+    # read_fq = args.read_files
     adapter_fa = args.adapters
     clip_start= args.clip_start
     min_len = args.min_len
@@ -86,11 +108,11 @@ def chk_clip_ilmn_reads(args):
     out_read_len = Counter()
     extracted = False
     ad_clipped_reads = {}
-    excluded_ct = 0
+    excluded_lst = []
     read_ct = 0
     # decompress if necessary
     if read_fq.endswith(".gz"):
-        read_fq = extract_gz(gzipped_file, keep_gz=True)
+        read_fq = extract_gz(read_fq, keep_gz=True)
         extracted = read_fq
     # set up fastq generator
     fa_gen = sl_fastq_generator(read_fq)
@@ -149,7 +171,7 @@ def chk_clip_ilmn_reads(args):
                     }
                 if clipped_len < min_len:
                     exclude = True
-                    excluded_ct += 1
+                    excluded_lst.append(rid)
             # write out read data to outfiles
             read_data = [rid,seq,plus,qual]
             if exclude:
@@ -183,7 +205,9 @@ def chk_clip_ilmn_reads(args):
         f"Cut adapters from {ct_adclipped} removing a total of "
         f"{all_removed_adclip} bases."
         )
-    print(f"Excluded {excluded_ct} reads with post-clip length < {min_len}")
+    print(
+        f"Excluded {len(excluded_lst)} reads with post-clip length < {min_len}"
+        )
     if ct_adclipped > 0:
         avg_removed_adclip = all_removed_adclip/ct_adclipped
         print(
@@ -199,12 +223,13 @@ def chk_clip_ilmn_reads(args):
     # remove unpacked fq if unzipping took place before (keeping only orig. gz)
     if extracted:
         os.remove(extracted)
-    return ad_count
+    return excluded_lst
 
 
 if __name__ == "__main__":
     args = get_args()
     start = perf_counter()
-    ad_count = chk_clip_ilmn_reads(args)
+    run_parallel_clipping(args)
+    # excluded_lst = chk_clip_ilmn_reads(args)
     stop = perf_counter()
     print(f"Runtime: {stop-start}")

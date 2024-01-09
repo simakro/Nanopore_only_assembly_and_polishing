@@ -368,36 +368,34 @@ rule fastqc_illumina_before:
 
 # potential tools for quality trimming: Sickle, Trimmomatic, 
 
-rule clip_adapters_scythe:
-    input:
-        "results/{experiment}/{barcode}/ilmn_fastqc/fastqc_complete.flag", # this is not required as input for fastqc, but supplies the necessary wildcards and ensures 
-        ilmn_reads=get_ilmn_reads
-    output:
-    params:
-        outdir="results/{experiment}/{barcode}/trim_scythe",
-        adapters=""
-    conda:
-        "envs/scythe.yaml"
-    shell:
-        "scythe -a {params.adapters} -o {input.ilmn_reads}"
-        # "fastqc {input.ilmn_reads} -o {params.outdir}"
-
-
-
 # rule clip_adapters_scythe:
 #     input:
 #         "results/{experiment}/{barcode}/ilmn_fastqc/fastqc_complete.flag", # this is not required as input for fastqc, but supplies the necessary wildcards and ensures 
 #         ilmn_reads=get_ilmn_reads
 #     output:
 #     params:
-#         outdir="results/{experiment}/{barcode}/"
+#         outdir="results/{experiment}/{barcode}/trim_scythe",
+#         adapters=""
 #     conda:
 #         "envs/scythe.yaml"
 #     shell:
-#         "mkdir {params.outdir} && "
-#         "fastqc {input.ilmn_reads} -o {params.outdir}"
-#         "touch {params.outdir}/fastqc_complete.flag"
+#         "scythe -a {params.adapters} -o {input.ilmn_reads}"
+#         # "fastqc {input.ilmn_reads} -o {params.outdir}"
 
+
+rule clip_adapters_sm:
+    input:
+        "results/{experiment}/{barcode}/ilmn_fastqc/fastqc_complete.flag", # this is not required as input for fastqc, but supplies the necessary wildcards and ensures 
+        ilmn_reads=get_ilmn_reads
+    output:
+    params:
+        outdir="results/{experiment}/{barcode}/trim_scythe",
+        adapters="resources/adapters_all_trimmomatic_condensed.fasta"
+    conda:
+        "envs/fastqc.yaml"
+    shell:
+        "scripts/identify_and_clip_ilmn_adapters.py -a {params.adapters} -o {input.ilmn_reads}"
+        # "fastqc {input.ilmn_reads} -o {params.outdir}"
 
 rule bwa_mem_1:
     input:

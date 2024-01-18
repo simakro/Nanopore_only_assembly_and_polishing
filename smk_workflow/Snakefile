@@ -27,7 +27,7 @@ SAMPLE_INFO = {
             "A2D2/A2D2_FKDN230265268-1A_HCFGLDRX3_L2_2.fq.gz"
             ]
         }
-}
+    }
 # BARCODES = ["test1", "test2"]
 ASSEMBLERS = ["flye"] # , "canu"
 #  GENOME_SIZE = 210000
@@ -42,9 +42,9 @@ BUSCO_GENUS = "bacteria"
 PILON_ITERATIONS = 1
 
 
-# def get_ref_path(wildcards):
-#     os.path.join(["resources", )
-#     return f"resources/{EXPERIMENTS}/{REFERENCE}.{REF_EXT}"
+def get_ref_path(wildcards):
+    ref_name = SAMPLE_INFO[wildcards.barcode]["ref"]
+    return os.path.join("resources", wildcards.experiment, ref_name)
 
 
 def get_ref_proteins(wildcards): # adapt to also accept .gb (which is same format as gbk) extensioon and .faa which is a different pure protein format usable for prokka --proteins
@@ -60,14 +60,13 @@ def get_ref_proteins(wildcards): # adapt to also accept .gb (which is same forma
 
 
 def get_draft_asm(wildcards):
-    print("Assembler:", wildcards.assembler)
+    # print("Assembler:", wildcards.assembler)
     if wildcards.assembler == "canu":
-        print(f"results/{wildcards.experiment}/{wildcards.barcode}/canu/{wildcards.experiment}_{wildcards.barcode}_canu.contigs.fasta")
-        # return f"results/{wildcards.experiment}/{wildcards.barcode}/{wildcards.assembler}/{wildcards.experiment}_{wildcards.barcode}_canu.contigs.fasta"
+        # print(f"results/{wildcards.experiment}/{wildcards.barcode}/canu/{wildcards.experiment}_{wildcards.barcode}_canu.contigs.fasta")
         return f"results/{wildcards.experiment}/{wildcards.barcode}/canu/{wildcards.experiment}_{wildcards.barcode}_canu.contigs.fasta"
     elif wildcards.assembler == "flye":
         # print("Assembler = Flye")
-        print(f"results/{wildcards.experiment}/{wildcards.barcode}/flye/assembly.fasta")
+        # print(f"results/{wildcards.experiment}/{wildcards.barcode}/flye/assembly.fasta")
         return f"results/{wildcards.experiment}/{wildcards.barcode}/flye/assembly.fasta"
     else:
         print("WARNING: No assembler in wildcards. Defaulting to canu.")
@@ -162,6 +161,8 @@ rule all:
         # expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon4/medaka_{assembler}_pilon4.fasta", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS, iteration=PILON_ITERATIONS),
         expand("results/{experiment}/{barcode}/ilmn_fastqc_before/fastqc_complete.flag", experiment=EXPERIMENTS, barcode=BARCODES),
         # expand("results/{experiment}/{barcode}/ilmn_fastqc_after/fastqc_complete.flag", experiment=EXPERIMENTS, barcode=BARCODES)
+        expand("results/{experiment}/{barcode}/dnadiff/medaka_{assembler}/consensus.report", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
+        expand("results/{experiment}/{barcode}/dnadiff/medaka_{assembler}_pilon1/medaka_{assembler}_pilon1.report", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS)
 
 
 rule preprocessing:
@@ -288,6 +289,23 @@ rule polish_medaka:
 #         "envs/homopolish.yaml"
 #     shell:
 #         "homopolish polish -a {input.asm} -l {input.ref} -m R9.4.pkl -o {output.outdir} -t {threads} 2>&1 > {log}"
+
+
+rule dnadiff:
+    input:
+        asm="results/{experiment}/{barcode}/{assembly}.fasta",
+        reference=get_ref_path
+        #, bam="results/{experiment}/{barcode}/medaka_{assembler}_bwa/idx{iteration}_aln_ilm_{experiment}_{barcode}.bam.sort"
+    output:
+        "results/{experiment}/{barcode}/dnadiff/{assembly}.report"
+    params:
+        prefix="results/{experiment}/{barcode}/dnadiff/{assembly}"
+    conda:
+        "envs/dnadiff.yaml"
+    log:
+        "logs/{experiment}/{barcode}/dnadiff/{assembly}.log"
+    shell:
+        "dnadiff  -p {params.prefix} {input.reference} {input.asm} 2>&1 > {log}"
 
 
 rule prokka:

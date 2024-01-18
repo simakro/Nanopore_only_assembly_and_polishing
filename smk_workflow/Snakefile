@@ -425,9 +425,9 @@ checkpoint clip_adapters_sm:
     log:
         "logs/{experiment}/{barcode}/ilmn_clip_sm.log"
     shell:
-        "mkdir -m 777 {params.outdir} -p && "
+        "mkdir -m 777 {output} -p && "
         "python3 scripts/identify_and_clip_ilmn_adapters.py -a {params.adapters} -r {input.ilmn_reads} -o {output} && "
-        "fastqc {input.ilmn_reads} -o {params.outdir}"
+        "fastqc {input.ilmn_reads} -o {output} && "
         "touch {output} 2>&1 > {log}"
 
 

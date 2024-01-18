@@ -80,13 +80,16 @@ def sl_fastq_generator(fastq):
 def run_parallel_clipping(args):
     read_fq = args.read_files
     clip_jobs = []
+    ct = 0
     for fq in read_fq:
+        ct += 1
         clj = mp.Process(
             target=chk_clip_ilmn_reads,
             args=(fq, args),
             # kwargs=kw_args
             )
         clip_jobs.append(clj)
+        print(f"Starting job {ct}")
         clj.start()
     for proc in clip_jobs:
         proc.join()
@@ -112,17 +115,23 @@ def chk_clip_ilmn_reads(read_fq, args):
     read_ct = 0
     # decompress if necessary
     if read_fq.endswith(".gz"):
+        print("decompressing")
         read_fq = extract_gz(read_fq, keep_gz=True)
         extracted = read_fq
     # set up fastq generator
+    print("Setting up generator")
     fa_gen = sl_fastq_generator(read_fq)
     # define outfiles
     # clipped_out = ".".join(read_fq.split(".")[:-1]) + "_clipped.fq"
     # excluded_out = ".".join(read_fq.split(".")[:-1]) + "_excluded.fq"
     if args.outdir:
+        print("Outdir arg is set")
         if not os.path.exists(args.outdir):
+            print("Outdir does not exist")
             os.makedirs(args.outdir, mode=777)
             os.chmod(args.outdir, 0o777)
+        else:
+            print("Outdir already exists")
         path, name = os.path.split(read_fq)
         clip_name = ".".join(name.split(".")[:-1]) + "_clipped.fq"
         excl_name = ".".join(name.split(".")[:-1]) + "_excluded.fq"
@@ -133,6 +142,7 @@ def chk_clip_ilmn_reads(read_fq, args):
         excluded_out = ".".join(read_fq.split(".")[:-1]) + "_excluded.fq"
     # iterate over fq entries in context manager
     with open(clipped_out, "w") as out, open(excluded_out, "w") as excl:
+        print("Starting iteration over reads")
         for rid,seq,plus,qual in fa_gen:
             # set in-loop counters, switches and containers
             read_ct += 1

@@ -1,4 +1,5 @@
 import os
+import glob
 import json
 
 # EXPERIMENTS = ["SM0014_HCMV_Voigt_fastq_pass"]
@@ -119,15 +120,21 @@ def get_ilmn_reads(wildcards):
     return paths
 
 
+# def get_clipped_ilmn_reads(wildcards):
+#     files = SAMPLE_INFO[wildcards.barcode]["illumina"]
+#     file_names = [os.path.split(f)[1] for f in files]
+#     ext_type = -2 if file_names[0].endswith(".gz") else -1
+#     files = [".".join(fq.split(".")[:ext_type])+"_clipped.fq" for fq in file_names]
+#     clip_path = f"results/{wildcards.experiment}/{wildcards.barcode}/ilmn_clip_sm"
+#     paths = [os.path.join(clip_path, f) for f in files]
+#     # both_space_sep = f"{paths[0]} {paths[1]}" # surprisingly returning the paths-list appears to work as input for all cli commands; possibly snakemake already handles converting them in space seperated strings?
+#     return paths
+
+
 def get_clipped_ilmn_reads(wildcards):
-    files = SAMPLE_INFO[wildcards.barcode]["illumina"]
-    file_names = [os.path.split(f)[1] for f in files]
-    ext_type = -2 if file_names[0].endswith(".gz") else -1
-    files = [".".join(fq.split(".")[:ext_type])+"_clipped.fq" for fq in file_names]
-    clip_path = f"results/{wildcards.experiment}/{wildcards.barcode}/ilmn_clip_sm"
-    paths = [os.path.join(clip_path, f) for f in files]
-    # both_space_sep = f"{paths[0]} {paths[1]}" # surprisingly returning the paths-list appears to work as input for all cli commands; possibly snakemake already handles converting them in space seperated strings?
-    return paths
+    ilmn_clip_dir = checkpoints.clip_adapters_sm.get(**wildcards).output[0]
+    # ilmn_reads = get_ilmn_reads(wildcards)
+    return glob.glob(os.path.join(ilmn_clip_dir, "*_clipped.fq"))
 
 
 # def get_genome_prev_iter(wildcards):
@@ -154,7 +161,7 @@ rule all:
         # expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon{iteration}/medaka_{assembler}_pilon{iteration}.fasta", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS, iteration=PILON_ITERATIONS),
         # expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon4/medaka_{assembler}_pilon4.fasta", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS, iteration=PILON_ITERATIONS),
         expand("results/{experiment}/{barcode}/ilmn_fastqc_before/fastqc_complete.flag", experiment=EXPERIMENTS, barcode=BARCODES),
-        expand("results/{experiment}/{barcode}/ilmn_fastqc_after/fastqc_complete.flag", experiment=EXPERIMENTS, barcode=BARCODES)
+        # expand("results/{experiment}/{barcode}/ilmn_fastqc_after/fastqc_complete.flag", experiment=EXPERIMENTS, barcode=BARCODES)
 
 
 rule preprocessing:
@@ -402,15 +409,16 @@ rule fastqc_illumina_before:
 #         # "fastqc {input.ilmn_reads} -o {params.outdir}"
 
 
-rule clip_adapters_sm:
+checkpoint clip_adapters_sm:
     input:
         "results/{experiment}/{barcode}/ilmn_fastqc_before/fastqc_complete.flag", # this is not required as input for fastqc, but supplies the necessary wildcards and ensures 
         ilmn_reads=get_ilmn_reads
     output:
         # "results/{experiment}/{barcode}/ilmn_clip_sm/",
-        "results/{experiment}/{barcode}/ilmn_fastqc_after/fastqc_complete.flag"
+        # "results/{experiment}/{barcode}/ilmn_fastqc_after/fastqc_complete.flag",
+        directory("results/{experiment}/{barcode}/ilmn_clip_sm")
     params:
-        outdir="results/{experiment}/{barcode}/ilmn_clip_sm",
+        # outdir="results/{experiment}/{barcode}/ilmn_clip_sm",
         adapters="resources/adapters_all_trimmomatic_condensed.fasta"
     conda:
         "envs/fastqc.yaml"
@@ -418,90 +426,91 @@ rule clip_adapters_sm:
         "logs/{experiment}/{barcode}/ilmn_clip_sm.log"
     shell:
         "mkdir -m 777 {params.outdir} -p && "
-        "python3 scripts/identify_and_clip_ilmn_adapters.py -a {params.adapters} -r {input.ilmn_reads} -o {params.outdir} && "
+        "python3 scripts/identify_and_clip_ilmn_adapters.py -a {params.adapters} -r {input.ilmn_reads} -o {output} && "
         "fastqc {input.ilmn_reads} -o {params.outdir}"
         "touch {output} 2>&1 > {log}"
 
 
-rule bwa_mem:
-    input:
-        raw_asm="results/{experiment}/{barcode}/{assembly}.fasta",
-        # ilmn_r1,ilmn_r2=get_ilmn_reads
-        ilmn_reads=get_clipped_ilmn_reads
-    output:
-        "results/{experiment}/{barcode}/{assembly}/ilmn_to_asm.bam.sort"#,
-        # outdir=directory("results/{experiment}/{barcode}/medaka_{assembler}/bwa")
-    params:
-        threads=16,
-        # prefix="idx1_medaka_{assembler}_{experiment}_{barcode}",
-        outdir="results/{experiment}/{barcode}/bwa/{assembly}",
-        sam_file="results/{experiment}/{barcode}/bwa/{assembly}/ilmn_to_asm.sam",
-        bam="results/{experiment}/{barcode}/bwa/{assembly}/ilmn_to_asm.bam"
-    conda:
-        "envs/bwa-mem2.yaml"
-    log:
-        "logs/{experiment}/{barcode}/bwa/{assembly}/ilmn_to_asm.log"
-    shell:
-        "mkdir -p {params.outdir} && "
-        "cd  {params.outdir} && "
-        "pwd && "
-        "bwa-mem2 index {input.raw_asm} -p {wildcards.assembly} && "
-        "bwa-mem2 mem -t {params.threads} {wildcards.assembly} {input.ilmn_reads} > {params.sam_file} && " # {input.ilmn_r1} {input.ilmn_r2}
-        "samtools view -hbS {params.sam_file} > {params.bam} && "
-        "samtools sort {params.bam} > {output} && "
-        "samtools index {output} &&  2>&1 > {log}"
-        # # "mv {params.prefix}.bam results/{wildcards.experiment}/{wildcards.barcode}/medaka_{wildcards.assembler} && " # this is just to test if the pilon WARNING that bam.bai index is older then BAM is related to moving the files around and getting new time stamps
-        # "mv {wildcards.assembly}* results/{wildcards.experiment}/{wildcards.barcode}/medaka_{wildcards.assembler} && "
-        # "mv {params.sam_file} {params.outdir} 2>&1 > {log}"
-
-
-# rule bwa_ilmn_to_rawasm:
+# rule bwa_mem:
 #     input:
-#         raw_asm="results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta",
+#         raw_asm="results/{experiment}/{barcode}/{assembly}.fasta",
 #         # ilmn_r1,ilmn_r2=get_ilmn_reads
 #         ilmn_reads=get_clipped_ilmn_reads
 #     output:
-#         "results/{experiment}/{barcode}/medaka_{assembler}_bwa/idx1_aln_ilm_{experiment}_{barcode}.bam.sort"#,
+#         "results/{experiment}/{barcode}/{assembly}/ilmn_to_asm.bam.sort"#,
 #         # outdir=directory("results/{experiment}/{barcode}/medaka_{assembler}/bwa")
 #     params:
 #         threads=16,
-#         prefix="idx1_medaka_{assembler}_{experiment}_{barcode}",
-#         sam_file="idx1_aln_ilm_{experiment}_{barcode}.sam",
-#         outdir="results/{experiment}/{barcode}/medaka_{assembler}_bwa",
-#         bam="results/{experiment}/{barcode}/medaka_{assembler}_bwa/idx1_aln_ilm_{experiment}_{barcode}.bam"
+#         # prefix="idx1_medaka_{assembler}_{experiment}_{barcode}",
+#         outdir="results/{experiment}/{barcode}/bwa/{assembly}",
+#         sam_file="results/{experiment}/{barcode}/bwa/{assembly}/ilmn_to_asm.sam",
+#         bam="results/{experiment}/{barcode}/bwa/{assembly}/ilmn_to_asm.bam"
 #     conda:
 #         "envs/bwa-mem2.yaml"
 #     log:
-#         "logs/{experiment}/{barcode}/bwa-mem-1_medaka_{assembler}.log"
+#         "logs/{experiment}/{barcode}/bwa/{assembly}/ilmn_to_asm.log"
 #     shell:
 #         "mkdir -p {params.outdir} && "
-#         "bwa-mem2 index {input.raw_asm} -p {params.prefix} && "
-#         "bwa-mem2 mem -t {params.threads} {params.prefix} {input.ilmn_reads} > {params.sam_file} && " # {input.ilmn_r1} {input.ilmn_r2}
+#         "cd  {params.outdir} && "
+#         "pwd && "
+#         "bwa-mem2 index {input.raw_asm} -p {wildcards.assembly} && "
+#         "bwa-mem2 mem -t {params.threads} {wildcards.assembly} {input.ilmn_reads} > {params.sam_file} && " # {input.ilmn_r1} {input.ilmn_r2}
 #         "samtools view -hbS {params.sam_file} > {params.bam} && "
 #         "samtools sort {params.bam} > {output} && "
-#         "samtools index {output} && "
-#         # "mv {params.prefix}.bam results/{wildcards.experiment}/{wildcards.barcode}/medaka_{wildcards.assembler} && " # this is just to test if the pilon WARNING that bam.bai index is older then BAM is related to moving the files around and getting new time stamps
-#         "mv {params.prefix}* results/{wildcards.experiment}/{wildcards.barcode}/medaka_{wildcards.assembler} && "
-#         "mv {params.sam_file} {params.outdir} 2>&1 > {log}"
+#         "samtools index {output} &&  2>&1 > {log}"
+#         # # "mv {params.prefix}.bam results/{wildcards.experiment}/{wildcards.barcode}/medaka_{wildcards.assembler} && " # this is just to test if the pilon WARNING that bam.bai index is older then BAM is related to moving the files around and getting new time stamps
+#         # "mv {wildcards.assembly}* results/{wildcards.experiment}/{wildcards.barcode}/medaka_{wildcards.assembler} && "
+#         # "mv {params.sam_file} {params.outdir} 2>&1 > {log}"
 
 
-# rule pilon_raw_asm:
-#     input:
-#         genome="results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta",
-#         bam="results/{experiment}/{barcode}/medaka_{assembler}_bwa/idx1_aln_ilm_{experiment}_{barcode}.bam.sort"
-#     output:
-#         "results/{experiment}/{barcode}/medaka_{assembler}_pilon1/medaka_{assembler}_pilon1.fasta",
-#         flag="results/{experiment}/{barcode}/medaka_{assembler}_pilon1/medaka_{assembler}_pilon1.complete.flag"
-#     params:
-#         prefix="medaka_{assembler}_pilon1",
-#         outdir="results/{experiment}/{barcode}/medaka_{assembler}_pilon1"
-#     conda:
-#         "envs/pilon.yaml"
-#     log:
-#         "logs/{experiment}/{barcode}/pilon-1_medaka_{assembler}.log"
-#     shell:
-#         "pilon -Xmx16G --genome {input.genome} --bam {input.bam} --output {params.prefix} --outdir {params.outdir} 2>&1 > {log} && "
-#         "touch {output.flag}"
+rule bwa_ilmn_to_rawasm:
+    input:
+        raw_asm="results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta",
+        # ilmn_r1,ilmn_r2=get_ilmn_reads
+        # flag="results/{experiment}/{barcode}/ilmn_fastqc_after/fastqc_complete.flag",
+        ilmn_reads=get_clipped_ilmn_reads
+    output:
+        "results/{experiment}/{barcode}/medaka_{assembler}_bwa/idx1_aln_ilm_{experiment}_{barcode}.bam.sort"#,
+        # outdir=directory("results/{experiment}/{barcode}/medaka_{assembler}/bwa")
+    params:
+        threads=16,
+        prefix="idx1_medaka_{assembler}_{experiment}_{barcode}",
+        sam_file="idx1_aln_ilm_{experiment}_{barcode}.sam",
+        outdir="results/{experiment}/{barcode}/medaka_{assembler}_bwa",
+        bam="results/{experiment}/{barcode}/medaka_{assembler}_bwa/idx1_aln_ilm_{experiment}_{barcode}.bam"
+    conda:
+        "envs/bwa-mem2.yaml"
+    log:
+        "logs/{experiment}/{barcode}/bwa-mem-1_medaka_{assembler}.log"
+    shell:
+        "mkdir -p {params.outdir} && "
+        "bwa-mem2 index {input.raw_asm} -p {params.prefix} && "
+        "bwa-mem2 mem -t {params.threads} {params.prefix} {input.ilmn_reads} > {params.sam_file} && " # {input.ilmn_r1} {input.ilmn_r2}
+        "samtools view -hbS {params.sam_file} > {params.bam} && "
+        "samtools sort {params.bam} > {output} && "
+        "samtools index {output} && "
+        # "mv {params.prefix}.bam results/{wildcards.experiment}/{wildcards.barcode}/medaka_{wildcards.assembler} && " # this is just to test if the pilon WARNING that bam.bai index is older then BAM is related to moving the files around and getting new time stamps
+        "mv {params.prefix}* results/{wildcards.experiment}/{wildcards.barcode}/medaka_{wildcards.assembler} && "
+        "mv {params.sam_file} {params.outdir} 2>&1 > {log}"
+
+
+rule pilon_raw_asm:
+    input:
+        genome="results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta",
+        bam="results/{experiment}/{barcode}/medaka_{assembler}_bwa/idx1_aln_ilm_{experiment}_{barcode}.bam.sort"
+    output:
+        "results/{experiment}/{barcode}/medaka_{assembler}_pilon1/medaka_{assembler}_pilon1.fasta",
+        flag="results/{experiment}/{barcode}/medaka_{assembler}_pilon1/medaka_{assembler}_pilon1.complete.flag"
+    params:
+        prefix="medaka_{assembler}_pilon1",
+        outdir="results/{experiment}/{barcode}/medaka_{assembler}_pilon1"
+    conda:
+        "envs/pilon.yaml"
+    log:
+        "logs/{experiment}/{barcode}/pilon-1_medaka_{assembler}.log"
+    shell:
+        "pilon -Xmx16G --genome {input.genome} --bam {input.bam} --output {params.prefix} --outdir {params.outdir} 2>&1 > {log} && "
+        "touch {output.flag}"
     
 
 # rule bwa_mem_iteration:

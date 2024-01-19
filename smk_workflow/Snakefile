@@ -2,13 +2,17 @@ import os
 import glob
 import json
 
-# EXPERIMENTS = ["SM0014_HCMV_Voigt_fastq_pass"]
-# EXPERIMENTS = ["SM0026_bacterial_genomes_KP"]
-EXPERIMENTS = "SM0026_bacterial_genomes_KP"
+
+include: "rules/Pilon.smk"
+include: "rules/Common.smk"
+
+# EXPERIMENT = ["SM0014_HCMV_Voigt_fastq_pass"]
+# EXPERIMENT = ["SM0026_bacterial_genomes_KP"]
+EXPERIMENT = "SM0026_bacterial_genomes_KP"
 BARCODES = [
     # "barcode01",
     "barcode02",
-    # "barcode03",
+    "barcode03",
     # "barcode04",
     # "barcode05",
     # "barcode06",
@@ -16,19 +20,23 @@ BARCODES = [
     # "barcode08",
     # "barcode09",
     ]
-SAMPLE_INFO = {
-    "barcode02": {
-        "name": "AP4a_Alicyclobacillus", 
-        "ref": "GCF_022674245.1_Alicyclobacillus_acidoterrestris_strain_DSM3922.fna",
-        "genus": "Alicyclobacillus",
-        "species": "acidoterrestris",
-        "illumina": [
-            "A2D2/A2D2_FKDN230265268-1A_HCFGLDRX3_L2_1.fq.gz",
-            "A2D2/A2D2_FKDN230265268-1A_HCFGLDRX3_L2_2.fq.gz"
-            ]
-        }
-    }
-# BARCODES = ["test1", "test2"]
+
+# SAMPLE_INFO = {
+#     "barcode02": {
+#         "name": "AP4a_Alicyclobacillus", 
+#         "ref": "GCF_022674245.1_Alicyclobacillus_acidoterrestris_strain_DSM3922.fna",
+#         "genus": "Alicyclobacillus",
+#         "species": "acidoterrestris",
+#         "illumina": [
+#             "A2D2/A2D2_FKDN230265268-1A_HCFGLDRX3_L2_1.fq.gz",
+#             "A2D2/A2D2_FKDN230265268-1A_HCFGLDRX3_L2_2.fq.gz"
+#             ]
+#         }
+#     }
+
+with open(os.path.join("data", EXPERIMENT, "Sample_Info.json")) as sinfo:
+    SAMPLE_INFO = json.load(sinfo)
+
 ASSEMBLERS = ["flye"] # , "canu"
 #  GENOME_SIZE = 210000
 GENOME_SIZE = 3000000
@@ -41,128 +49,27 @@ REFERENCES = [SAMPLE_INFO[barcode]["ref"] for barcode in SAMPLE_INFO]
 BUSCO_GENUS = "bacteria"
 PILON_ITERATIONS = 1
 
-
-def get_ref_path(wildcards):
-    ref_name = SAMPLE_INFO[wildcards.barcode]["ref"]
-    return os.path.join("resources", wildcards.experiment, ref_name)
-
-
-def get_ref_proteins(wildcards): # adapt to also accept .gb (which is same format as gbk) extensioon and .faa which is a different pure protein format usable for prokka --proteins
-    reference = SAMPLE_INFO[wildcards.barcode]["ref"]
-    comp_ext = [".gbk", ".gb", ".faa"]
-    prot_files = [f'{(".").join(reference.split(".")[:-1])}{ext}' for ext in comp_ext]
-    res_dir = os.path.join("resources", wildcards.experiment)
-    res_files = [entry.name for entry in os.scandir(res_dir)]
-    avail_prot = [f for f in prot_files if f in res_files][0]
-    # ref_path = os.path.join("resources", wildcards.experiment, SAMPLE_INFO[wildcards.barcode]["ref"])
-    prot_path = os.path.join(res_dir, avail_prot)
-    return prot_path
-
-
-def get_draft_asm(wildcards):
-    # print("Assembler:", wildcards.assembler)
-    if wildcards.assembler == "canu":
-        # print(f"results/{wildcards.experiment}/{wildcards.barcode}/canu/{wildcards.experiment}_{wildcards.barcode}_canu.contigs.fasta")
-        return f"results/{wildcards.experiment}/{wildcards.barcode}/canu/{wildcards.experiment}_{wildcards.barcode}_canu.contigs.fasta"
-    elif wildcards.assembler == "flye":
-        # print("Assembler = Flye")
-        # print(f"results/{wildcards.experiment}/{wildcards.barcode}/flye/assembly.fasta")
-        return f"results/{wildcards.experiment}/{wildcards.barcode}/flye/assembly.fasta"
-    else:
-        print("WARNING: No assembler in wildcards. Defaulting to canu.")
-        return "canu"
-
-
-def get_prokka_genus(wildcards):
-    return SAMPLE_INFO[wildcards.barcode]["genus"]
-
-
-def get_prokka_species(wildcards):
-    return SAMPLE_INFO[wildcards.barcode]["species"]
-
-
-def get_len_filt_param(wildcards):
-    param_json = f"results/{wildcards.experiment}/{wildcards.barcode}/filt_params.json"
-    with open(param_json, "r") as paraj:
-        data = paraj.read()
-        param_dct = json.loads(data)
-        print(param_dct.items())
-    return param_dct["len"]
-
-
-def get_qual_filt_param(wildcards):
-    param_json = f"results/{wildcards.experiment}/{wildcards.barcode}/filt_params.json"
-    with open(param_json, "r") as paraj:
-        data = paraj.read()
-        param_dct = json.loads(data)
-        print(param_dct.items())
-    return param_dct["qual"]
-
-
-def get_busco_graph_outdir(wildcards):
-    # return os.path.split(wildcards.input)[0]
-    # outdir = f"results/{wildcards.experiment}/busco_graph_{wildcards.assembler}"
-    outdir = f"results/{wildcards.experiment}/busco_graph"
-    if not os.path.exists(f"results/{wildcards.experiment}"):
-       os.mkdir(f"results/{wildcards.experiment}")
-    if not os.path.exists(outdir):
-       os.mkdir(outdir)
-    print(outdir)
-    return outdir
-
-
-def get_ilmn_reads(wildcards):
-    files = SAMPLE_INFO[wildcards.barcode]["illumina"]
-    path = os.path.join("data", wildcards.experiment, "short-reads")
-    paths = [os.path.join(path, f) for f in files]
-    # both_space_sep = f"{paths[0]} {paths[1]}" # surprisingly returning the paths-list appears to work as input for all cli commands; possibly snakemake already handles converting them in space seperated strings?
-    return paths
-
-
-# def get_clipped_ilmn_reads(wildcards):
-#     files = SAMPLE_INFO[wildcards.barcode]["illumina"]
-#     file_names = [os.path.split(f)[1] for f in files]
-#     ext_type = -2 if file_names[0].endswith(".gz") else -1
-#     files = [".".join(fq.split(".")[:ext_type])+"_clipped.fq" for fq in file_names]
-#     clip_path = f"results/{wildcards.experiment}/{wildcards.barcode}/ilmn_clip_sm"
-#     paths = [os.path.join(clip_path, f) for f in files]
-#     # both_space_sep = f"{paths[0]} {paths[1]}" # surprisingly returning the paths-list appears to work as input for all cli commands; possibly snakemake already handles converting them in space seperated strings?
-#     return paths
-
-
-def get_clipped_ilmn_reads(wildcards):
-    ilmn_clip_dir = checkpoints.clip_adapters_sm.get(**wildcards).output[0]
-    # ilmn_reads = get_ilmn_reads(wildcards)
-    return glob.glob(os.path.join(ilmn_clip_dir, "*_clipped.fq"))
-
-
-# def get_genome_prev_iter(wildcards):
-#     prev_ct = int(wildcards.iteration) - 1
-#     prev_iter = "results/{wildcards.experiment}/{wildcards.barcode}/medaka_{wildcards.assembler}_pilon{prev_ct}/medaka_{wildcards.assembler}_pilon{prev_ct}.fasta"
-#     return prev_iter
-
-
 rule all:
     input:
-        # # expand("results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
-        #! expand("results/{experiment}/{barcode}/prokka_medaka_{assembler}_genusdb/{experiment}_{barcode}_{assembler}_prokka_genusdb.tsv", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
-        expand("results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk/{experiment}_{barcode}_{assembler}_prokka_protgbk.tsv", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
-        # expand("results/{experiment}/{barcode}/homopolish_medaka_{assembler}/consensus_homopolished.fasta", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
-        # # expand("results/{experiment}/{barcode}/busco_medaka_{assembler}/run_herpesviridae_odb10/short_summary.json", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
-        expand("results/{experiment}/{reference}/run_{genus}_odb10/short_summary.specific.{reference}.txt", experiment=EXPERIMENTS, reference=REFERENCES, genus=BUSCO_GENUS),
-        expand("results/{experiment}/{barcode}/busco_medaka_{assembler}/run_{genus}_odb10/short_summary.specific.{barcode}.txt", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS, genus=BUSCO_GENUS),
-        # expand("results/{experiment}/busco_graph_{assembler}/busco_figure.png", experiment=EXPERIMENTS, assembler=ASSEMBLERS)
-        # # expand("results/{experiment}/{barcode}/filt_params.json", experiment=EXPERIMENTS, barcode=BARCODES)
+        # # expand("results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
+        #! expand("results/{experiment}/{barcode}/prokka_medaka_{assembler}_genusdb/{experiment}_{barcode}_{assembler}_prokka_genusdb.tsv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
+        expand("results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk/{experiment}_{barcode}_{assembler}_prokka_protgbk.tsv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
+        # expand("results/{experiment}/{barcode}/homopolish_medaka_{assembler}/consensus_homopolished.fasta", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
+        # # expand("results/{experiment}/{barcode}/busco_medaka_{assembler}/run_herpesviridae_odb10/short_summary.json", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
+        expand("results/{experiment}/{reference}/run_{genus}_odb10/short_summary.specific.{reference}.txt", experiment=EXPERIMENT, reference=REFERENCES, genus=BUSCO_GENUS),
+        expand("results/{experiment}/{barcode}/busco_medaka_{assembler}/run_{genus}_odb10/short_summary.specific.{barcode}.txt", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS, genus=BUSCO_GENUS),
+        # expand("results/{experiment}/busco_graph_{assembler}/busco_figure.png", experiment=EXPERIMENT, assembler=ASSEMBLERS)
+        # # expand("results/{experiment}/{barcode}/filt_params.json", experiment=EXPERIMENT, barcode=BARCODES)
         # f"results/{REFERENCE}/run_alicyclobacillus_odb10/short_summary.json",
-        expand("results/{experiment}/busco_graph/busco_figure.png", experiment=EXPERIMENTS, assembler=ASSEMBLERS),
-        expand("results/{experiment}/{barcode}/medaka_{assembler}_bwa/idx1_aln_ilm_{experiment}_{barcode}.bam.sort", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
-        expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon1/medaka_{assembler}_pilon1.complete.flag", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
-        # expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon{iteration}/medaka_{assembler}_pilon{iteration}.fasta", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS, iteration=PILON_ITERATIONS),
-        # expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon4/medaka_{assembler}_pilon4.fasta", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS, iteration=PILON_ITERATIONS),
-        expand("results/{experiment}/{barcode}/ilmn_fastqc_before/fastqc_complete.flag", experiment=EXPERIMENTS, barcode=BARCODES),
-        # expand("results/{experiment}/{barcode}/ilmn_fastqc_after/fastqc_complete.flag", experiment=EXPERIMENTS, barcode=BARCODES)
-        expand("results/{experiment}/{barcode}/dnadiff/medaka_{assembler}/consensus.report", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS),
-        expand("results/{experiment}/{barcode}/dnadiff/medaka_{assembler}_pilon1/medaka_{assembler}_pilon1.report", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS)
+        expand("results/{experiment}/busco_graph/busco_figure.png", experiment=EXPERIMENT, assembler=ASSEMBLERS),
+        expand("results/{experiment}/{barcode}/medaka_{assembler}_bwa/idx1_aln_ilm_{experiment}_{barcode}.bam.sort", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
+        expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon1/medaka_{assembler}_pilon1.complete.flag", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
+        # expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon{iteration}/medaka_{assembler}_pilon{iteration}.fasta", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS, iteration=PILON_ITERATIONS),
+        # expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon4/medaka_{assembler}_pilon4.fasta", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS, iteration=PILON_ITERATIONS),
+        expand("results/{experiment}/{barcode}/ilmn_fastqc_before/fastqc_complete.flag", experiment=EXPERIMENT, barcode=BARCODES),
+        # expand("results/{experiment}/{barcode}/ilmn_fastqc_after/fastqc_complete.flag", experiment=EXPERIMENT, barcode=BARCODES)
+        expand("results/{experiment}/{barcode}/dnadiff/medaka_{assembler}/consensus.report", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
+        expand("results/{experiment}/{barcode}/dnadiff/medaka_{assembler}_pilon1/medaka_{assembler}_pilon1.report", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
 
 
 rule preprocessing:
@@ -273,24 +180,6 @@ rule polish_medaka:
         "medaka_consensus -i {input.reads} -d {input.draft_asm} -o {params.outdir} -t {threads} 2>&1 > {log}"
 
 
-# rule homopolish: # Reference guided/based polishing without read information and may conceal variants! Assumes close homology (hence the name) between ref and sample.
-#     input:
-#         asm="results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta",
-#         # ref="resources/KP202868.1_Murid_herpesvirus_8_isolate_Berlin.fa"
-#         ref= "resources/{experiment}/{reference}"
-#     output:
-#         outdir = directory("results/{experiment}/{barcode}/homopolish_medaka_{assembler}"),
-#         outfile= "results/{experiment}/{barcode}/homopolish_medaka_{assembler}/consensus_homopolished.fasta"
-#     log:
-#         "logs/{experiment}/{barcode}/medaka_{assembler}_homopolish.log"
-#     threads:
-#         16
-#     conda:
-#         "envs/homopolish.yaml"
-#     shell:
-#         "homopolish polish -a {input.asm} -l {input.ref} -m R9.4.pkl -o {output.outdir} -t {threads} 2>&1 > {log}"
-
-
 rule dnadiff:
     input:
         asm="results/{experiment}/{barcode}/{assembly}.fasta",
@@ -354,7 +243,7 @@ rule busco_nanopore:
 
 rule busco_reference:
     input:
-        # expand("results/{experiment}/{barcode}/busco_medaka_{assembler}/run_{genus}_odb10/short_summary.txt", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS, genus=BUSCO_GENUS),
+        # expand("results/{experiment}/{barcode}/busco_medaka_{assembler}/run_{genus}_odb10/short_summary.txt", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS, genus=BUSCO_GENUS),
         # ef_genome = get_ref_path,
         # exp_folder = "results/{experiment}/{ref_name}",
         ref_genome = "resources/{experiment}/{ref_name}" # .fna
@@ -377,8 +266,8 @@ rule busco_generate_plot:
     input:
         # ref_inf="results/{experiment}/busco_graph_{assembler}/short_summary.specific.herpesviridae_odb10.MuridHerpesvirus_8_Berlin.txt",
         # ref_inf="results/{experiment}/busco_graph_{assembler}/short_summary.specific.{BUSCO_GENUS}_odb10.{REFERENCE}.txt",
-        # expand("results/{experiment}/{barcode}/busco_medaka_{assembler}/run_{genus}_odb10/short_summary.txt", experiment=EXPERIMENTS, barcode=BARCODES, assembler=ASSEMBLERS, genus=BUSCO_GENUS),
-        expand("results/{experiment}/{barcode}/busco_medaka_{assembler}/run_{genus}_odb10/short_summary.specific.{barcode}.txt", experiment=EXPERIMENTS, assembler=ASSEMBLERS, reference=REFERENCES, genus=BUSCO_GENUS, barcode=BARCODES) #,
+        # expand("results/{experiment}/{barcode}/busco_medaka_{assembler}/run_{genus}_odb10/short_summary.txt", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS, genus=BUSCO_GENUS),
+        expand("results/{experiment}/{barcode}/busco_medaka_{assembler}/run_{genus}_odb10/short_summary.specific.{barcode}.txt", experiment=EXPERIMENT, assembler=ASSEMBLERS, reference=REFERENCES, genus=BUSCO_GENUS, barcode=BARCODES) #,
     output:
         # outdir=directory("results/{experiment}/busco_graph_{assembler}"),
         "results/{experiment}/busco_graph/busco_figure.png",
@@ -407,26 +296,6 @@ rule fastqc_illumina_before:
         "touch {params.outdir}/fastqc_complete.flag"
 
 
-# potential tools for adapter clipping/trimming: Scythe, Trimmomatic, cutadapt
-# adapter clipping tested and discarded: trim_galore (wrapping cutadapt together with fastqc)
-
-# potential tools for quality trimming: Sickle, Trimmomatic, 
-
-# rule clip_adapters_scythe:
-#     input:
-#         "results/{experiment}/{barcode}/ilmn_fastqc/fastqc_complete.flag", # this is not required as input for fastqc, but supplies the necessary wildcards and ensures 
-#         ilmn_reads=get_ilmn_reads
-#     output:
-#     params:
-#         outdir="results/{experiment}/{barcode}/trim_scythe",
-#         adapters=""
-#     conda:
-#         "envs/scythe.yaml"
-#     shell:
-#         "scythe -a {params.adapters} -o {input.ilmn_reads}"
-#         # "fastqc {input.ilmn_reads} -o {params.outdir}"
-
-
 checkpoint clip_adapters_sm:
     input:
         "results/{experiment}/{barcode}/ilmn_fastqc_before/fastqc_complete.flag", # this is not required as input for fastqc, but supplies the necessary wildcards and ensures 
@@ -444,9 +313,9 @@ checkpoint clip_adapters_sm:
         "logs/{experiment}/{barcode}/ilmn_clip_sm.log"
     shell:
         "mkdir -m 777 {output} -p && "
-        "python3 scripts/identify_and_clip_ilmn_adapters.py -a {params.adapters} -r {input.ilmn_reads} -o {output} && "
+        "python3 scripts/identify_and_clip_ilmn_adapters.py -a {params.adapters} -r {input.ilmn_reads} -o {output} 2>&1 > {log} && "
         "fastqc {input.ilmn_reads} -o {output} && "
-        "touch {output} 2>&1 > {log}"
+        "touch {output}"
 
 
 # rule bwa_mem:
@@ -479,127 +348,3 @@ checkpoint clip_adapters_sm:
 #         # # "mv {params.prefix}.bam results/{wildcards.experiment}/{wildcards.barcode}/medaka_{wildcards.assembler} && " # this is just to test if the pilon WARNING that bam.bai index is older then BAM is related to moving the files around and getting new time stamps
 #         # "mv {wildcards.assembly}* results/{wildcards.experiment}/{wildcards.barcode}/medaka_{wildcards.assembler} && "
 #         # "mv {params.sam_file} {params.outdir} 2>&1 > {log}"
-
-
-rule bwa_ilmn_to_rawasm:
-    input:
-        raw_asm="results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta",
-        # ilmn_r1,ilmn_r2=get_ilmn_reads
-        # flag="results/{experiment}/{barcode}/ilmn_fastqc_after/fastqc_complete.flag",
-        ilmn_reads=get_clipped_ilmn_reads
-    output:
-        "results/{experiment}/{barcode}/medaka_{assembler}_bwa/idx1_aln_ilm_{experiment}_{barcode}.bam.sort"#,
-        # outdir=directory("results/{experiment}/{barcode}/medaka_{assembler}/bwa")
-    params:
-        threads=16,
-        prefix="idx1_medaka_{assembler}_{experiment}_{barcode}",
-        sam_file="idx1_aln_ilm_{experiment}_{barcode}.sam",
-        outdir="results/{experiment}/{barcode}/medaka_{assembler}_bwa",
-        bam="results/{experiment}/{barcode}/medaka_{assembler}_bwa/idx1_aln_ilm_{experiment}_{barcode}.bam"
-    conda:
-        "envs/bwa-mem2.yaml"
-    log:
-        "logs/{experiment}/{barcode}/bwa-mem-1_medaka_{assembler}.log"
-    shell:
-        "mkdir -p {params.outdir} && "
-        "bwa-mem2 index {input.raw_asm} -p {params.prefix} && "
-        "bwa-mem2 mem -t {params.threads} {params.prefix} {input.ilmn_reads} > {params.sam_file} && " # {input.ilmn_r1} {input.ilmn_r2}
-        "samtools view -hbS {params.sam_file} > {params.bam} && "
-        "samtools sort {params.bam} > {output} && "
-        "samtools index {output} && "
-        # "mv {params.prefix}.bam results/{wildcards.experiment}/{wildcards.barcode}/medaka_{wildcards.assembler} && " # this is just to test if the pilon WARNING that bam.bai index is older then BAM is related to moving the files around and getting new time stamps
-        "mv {params.prefix}* results/{wildcards.experiment}/{wildcards.barcode}/medaka_{wildcards.assembler} && "
-        "mv {params.sam_file} {params.outdir} 2>&1 > {log}"
-
-
-rule pilon_raw_asm:
-    input:
-        genome="results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta",
-        bam="results/{experiment}/{barcode}/medaka_{assembler}_bwa/idx1_aln_ilm_{experiment}_{barcode}.bam.sort"
-    output:
-        "results/{experiment}/{barcode}/medaka_{assembler}_pilon1/medaka_{assembler}_pilon1.fasta",
-        flag="results/{experiment}/{barcode}/medaka_{assembler}_pilon1/medaka_{assembler}_pilon1.complete.flag"
-    params:
-        prefix="medaka_{assembler}_pilon1",
-        outdir="results/{experiment}/{barcode}/medaka_{assembler}_pilon1"
-    conda:
-        "envs/pilon.yaml"
-    log:
-        "logs/{experiment}/{barcode}/pilon-1_medaka_{assembler}.log"
-    shell:
-        "pilon -Xmx16G --genome {input.genome} --bam {input.bam} --output {params.prefix} --outdir {params.outdir} 2>&1 > {log} && "
-        "touch {output.flag}"
-    
-
-# rule bwa_mem_iteration:
-#     input:
-#         # raw_asm="results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta",
-#         # "results/{experiment}/{barcode}/medaka_{assembler}_pilon{iteration}/medaka_{assembler}_pilon{iteration}.fasta"
-#         # genome=get_genome_prev_iter,
-#         # genome = lambda wildcards: "results/{experiment}/{barcode}/medaka_{assembler}_pilon{0}/medaka_{assembler}_pilon{0}.fasta".format(int(wildcards.iteration)-1),
-#         genome = lambda wildcards: "results/{0}/{1}/medaka_{2}_pilon{3}/medaka_{2}_pilon{3}.fasta".format(wildcards.experiment, wildcards.barcode, wildcards.assembler, int(wildcards.iteration-1)),
-#         # ilmn_r1,ilmn_r2=get_ilmn_reads
-#         # ilmn_reads=get_clipped_ilmn_reads
-#     output:
-#         "results/{experiment}/{barcode}/medaka_{assembler}_bwa/idx{iteration}_aln_ilm_{experiment}_{barcode}.bam.sort"#,
-#         # outdir=directory("results/{experiment}/{barcode}/medaka_{assembler}/bwa")
-#     params:
-#         ilmn_reads=get_clipped_ilmn_reads,
-#         threads=16,
-#         prefix="idx{iteration}_medaka_{assembler}_{experiment}_{barcode}",
-#         sam_file="idx{iteration}_aln_ilm_{experiment}_{barcode}.sam",
-#         outdir="results/{experiment}/{barcode}/medaka_{assembler}_bwa",
-#         bam="results/{experiment}/{barcode}/medaka_{assembler}_bwa/idx{iteration}_aln_ilm_{experiment}_{barcode}.bam"
-#     conda:
-#         "envs/bwa-mem2.yaml"
-#     log:
-#         "logs/{experiment}/{barcode}/bwa-mem-{iteration}_medaka_{assembler}.log"
-#     shell:
-#         "mkdir -p {params.outdir} && "
-#         "bwa-mem2 index {input.raw_asm} -p {params.prefix} && "
-#         "bwa-mem2 mem -t {params.threads} {params.prefix} {params.ilmn_reads} > {params.sam_file} && " # {input.ilmn_r1} {input.ilmn_r2}
-#         "samtools view -hbS {params.sam_file} > {params.bam} && "
-#         "samtools sort {params.bam} > {output} && "
-#         "samtools index {output} && "
-#         # "mv {params.prefix}.bam results/{wildcards.experiment}/{wildcards.barcode}/medaka_{wildcards.assembler} && " # this is just to test if the pilon WARNING that bam.bai index is older then BAM is related to moving the files around and getting new time stamps
-#         "mv {params.prefix}* results/{wildcards.experiment}/{wildcards.barcode}/medaka_{wildcards.assembler} && "
-#         "mv {params.sam_file} {params.outdir} 2>&1 > {log}"
-
-
-# rule pilon_iteration:
-#     input:
-#         # genome="results/{experiment}/{barcode}/medaka_{assembler}_pilon/medaka_{assembler}_pilon1.fasta"
-#         # genome=get_genome_prev_iter,
-#         genome = lambda wildcards: "results/{0}/{1}/medaka_{2}_pilon{3}/medaka_{2}_pilon{3}.fasta".format(wildcards.experiment, wildcards.barcode, wildcards.assembler, int(wildcards.iteration-1)),
-#         # genome="results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta",
-#         bam="results/{experiment}/{barcode}/medaka_{assembler}_bwa/idx{iteration}_aln_ilm_{experiment}_{barcode}.bam.sort"
-#     output:
-#         "results/{experiment}/{barcode}/medaka_{assembler}_pilon{iteration}/medaka_{assembler}_pilon{iteration}.fasta"
-#     params:
-#         prefix="medaka_{assembler}_pilon{iteration}",
-#         outdir="results/{experiment}/{barcode}/medaka_{assembler}_pilon{iteration}"
-#     conda:
-#         "envs/pilon.yaml"
-#     log:
-#         "logs/{experiment}/{barcode}/pilon-{iteration}_medaka_{assembler}.log"
-#     shell:
-#         "pilon -Xmx16G --genome {input.genome} --bam {input.bam} --output {params.prefix} --outdir {params.outdir} 2>&1 > {log}"
-
-
-
-# rule dnadiff:
-#     input:
-#         genome="results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta",
-#         bam="results/{experiment}/{barcode}/medaka_{assembler}_bwa/idx{iteration}_aln_ilm_{experiment}_{barcode}.bam.sort"
-#     output:
-#         "results/{experiment}/{barcode}/medaka_{assembler}_pilon{iteration}/medaka_{assembler}_pilon{iteration}.fasta"
-#     params:
-#         prefix="medaka_{assembler}_pilon{iteration}",
-#         outdir="results/{experiment}/{barcode}/medaka_{assembler}_pilon{iteration}"
-#     conda:
-#         "envs/pilon.yaml"
-#     log:
-#         "logs/{experiment}/{barcode}/pilon-{iteration}_medaka_{assembler}.log"
-#     shell:
-#         "pilon -Xmx16G --genome {input.genome} --bam {input.bam} --output {params.prefix} --outdir {params.outdir} 2>&1 > {log}"
-

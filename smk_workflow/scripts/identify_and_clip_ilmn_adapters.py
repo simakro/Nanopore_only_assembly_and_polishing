@@ -36,6 +36,12 @@ def get_args():
         "-sh", "--show_histo", default=False, action="store_true",
         help="Set this flag to output histograms of adapter positions in reads."
         )
+    optional_args.add_argument(
+        "-pd", "--probing_depth", default=250000, type=int,
+        help="Define how many reads from the beginning of each read fastq are "
+        "probed with all available adapters in order to determine the adapter "
+        "set that is used to scan the whole file. [250000]"
+        )
     args = parser.parse_args()
     return args
 
@@ -78,6 +84,7 @@ def sl_fastq_generator(fastq):
 #     read_files = read_arg.split(" ")
 #     print(read_files)
 def run_parallel_clipping(args):
+    return_dct = mp.Manager().dict()
     read_fq = args.read_files
     clip_jobs = []
     ct = 0
@@ -85,7 +92,7 @@ def run_parallel_clipping(args):
         ct += 1
         clj = mp.Process(
             target=chk_clip_ilmn_reads,
-            args=(fq, args),
+            args=(fq, args, return_dct),
             # kwargs=kw_args
             )
         clip_jobs.append(clj)
@@ -93,17 +100,41 @@ def run_parallel_clipping(args):
         clj.start()
     for proc in clip_jobs:
         proc.join()
+    print("return_dct", return_dct)
+    return return_dct
 
 
-def chk_clip_ilmn_reads(read_fq, args):
+def probe_for_adapters(read_fq, args):
+    # further speed-up would be achievable if in cases where multiple adapters are found,
+    # if one or more of those adapters are always preceeded by a different adapter,
+    # it would suffice to only return the preceeding adapter, since this would lead
+    # to removal of the following ones as well. A shorter list for searching of each
+    # seq line leads to significant speed-up. 
+    adapters_count = Counter()
+    adapter_dict = load_adapter(args.adapters)
+    fa_gen = sl_fastq_generator(read_fq)
+    read_ct = 0
+    for rid,seq,plus,qual in fa_gen:
+        read_ct += 1
+        if read_ct > args.probing_depth:
+            del(fa_gen)
+            break
+        for ad in adapter_dict:
+            if ad in seq:
+                adapters_count[ad] += 1
+    print(f"Probed {os.path.split(read_fq)[1]} for adapters:\n{adapters_count}")
+    return {k:adapter_dict[k] for k in adapters_count}
+
+
+def chk_clip_ilmn_reads(read_fq, args, return_dct):
     # set arguments
     # read_fq = args.read_files
-    adapter_fa = args.adapters
+    ## adapter_fa = args.adapters
     clip_start= args.clip_start
     min_len = args.min_len
     show_ad_histo = args.show_histo
     # initialize containers, counters and switches
-    adapter_dict = load_adapter(adapter_fa)
+    ## adapter_dict = load_adapter(adapter_fa)
     read_dict = dict()
     ad_count = Counter()
     ad_pos = defaultdict(Counter)
@@ -120,6 +151,7 @@ def chk_clip_ilmn_reads(read_fq, args):
         extracted = read_fq
     # set up fastq generator
     print("Setting up generator")
+    adapter_dict = probe_for_adapters(read_fq, args)
     fa_gen = sl_fastq_generator(read_fq)
     # define outfiles
     # clipped_out = ".".join(read_fq.split(".")[:-1]) + "_clipped.fq"
@@ -140,6 +172,8 @@ def chk_clip_ilmn_reads(read_fq, args):
     else:
         clipped_out = ".".join(read_fq.split(".")[:-1]) + "_clipped.fq"
         excluded_out = ".".join(read_fq.split(".")[:-1]) + "_excluded.fq"
+    # if args.gzip_output:
+    #     pass
     # iterate over fq entries in context manager
     with open(clipped_out, "w") as out, open(excluded_out, "w") as excl:
         print("Starting iteration over reads")
@@ -233,13 +267,57 @@ def chk_clip_ilmn_reads(read_fq, args):
     # remove unpacked fq if unzipping took place before (keeping only orig. gz)
     if extracted:
         os.remove(extracted)
-    return excluded_lst
+    # return excluded_lst
+    return_dct[read_fq] = excluded_lst
+
+
+def compare_excluded(return_dct, args):
+    # if args.interleaved:
+    #     pass
+    # if args.not_paired:
+    #     pass
+    # else:
+    fqs1 = set([r.split(" ")[0] for r in return_dct.values()[0]])
+    fqs2 = set([r.split(" ")[0] for r in return_dct.values()[1]])
+    print("fqs1", fqs1)
+    print("fqs2", fqs2)
+    # asym = fqs1.intersection(fqs2)
+    asym = fqs1.symmetric_difference(fqs2)
+    print("asym", asym)
+    excl_asym = {k:[r.split(" ")[0] for r in v if r.split(" ")[0] in asym] for k,v in return_dct.items()}
+    print("excl_asym", excl_asym)
+    return excl_asym
+
+
+def repair_files(clipped_fq, excl_lst, args):
+    print(f"Repairing {clipped_fq}. Excl.-List: {excl_lst}")
+    repaired = clipped_fq + ".rep"
+    fa_gen = sl_fastq_generator(clipped_fq)
+    with open(clipped_fq, "r") as clip, open(repaired, "w") as rep:
+        for rid,seq,plus,qual in fa_gen:
+            if rid.split(" ")[0] in excl_lst:
+                print(
+                    f"Removed {rid} from {clipped_fq} to restore pe-fq symmetry"
+                    )
+            else:
+                read_data = [rid,seq,plus,qual]
+                for item in read_data:
+                    rep.write(f"{item}\n")
+
+
+    
+
+
+
 
 
 if __name__ == "__main__":
     args = get_args()
     start = perf_counter()
-    run_parallel_clipping(args)
+    return_dct = run_parallel_clipping(args)
+    excl_asym = compare_excluded(return_dct, args)
+    for fq in excl_asym:
+        repair_files(fq, excl_asym[fq], args)
     # excluded_lst = chk_clip_ilmn_reads(args)
     stop = perf_counter()
     print(f"Runtime: {stop-start}")

@@ -21,19 +21,6 @@ BARCODES = [
     # "barcode09",
     ]
 
-# SAMPLE_INFO = {
-#     "barcode02": {
-#         "name": "AP4a_Alicyclobacillus", 
-#         "ref": "GCF_022674245.1_Alicyclobacillus_acidoterrestris_strain_DSM3922.fna",
-#         "genus": "Alicyclobacillus",
-#         "species": "acidoterrestris",
-#         "illumina": [
-#             "A2D2/A2D2_FKDN230265268-1A_HCFGLDRX3_L2_1.fq.gz",
-#             "A2D2/A2D2_FKDN230265268-1A_HCFGLDRX3_L2_2.fq.gz"
-#             ]
-#         }
-#     }
-
 with open(os.path.join("data", EXPERIMENT, "Sample_Info.json")) as sinfo:
     SAMPLE_INFO = json.load(sinfo)
 
@@ -303,7 +290,8 @@ checkpoint clip_adapters_sm:
     output:
         # "results/{experiment}/{barcode}/ilmn_clip_sm/",
         # "results/{experiment}/{barcode}/ilmn_fastqc_after/fastqc_complete.flag",
-        directory("results/{experiment}/{barcode}/ilmn_clip_sm")
+        directory("results/{experiment}/{barcode}/ilmn_clip_sm"),
+
     params:
         # outdir="results/{experiment}/{barcode}/ilmn_clip_sm",
         adapters="resources/adapters_all_trimmomatic_condensed.fasta"
@@ -313,9 +301,9 @@ checkpoint clip_adapters_sm:
         "logs/{experiment}/{barcode}/ilmn_clip_sm.log"
     shell:
         "mkdir -m 777 {output} -p && "
-        "python3 scripts/identify_and_clip_ilmn_adapters.py -a {params.adapters} -r {input.ilmn_reads} -o {output} 2>&1 > {log} && "
-        "fastqc {input.ilmn_reads} -o {output} && "
-        "touch {output}"
+        "python3 scripts/identify_and_clip_ilmn_adapters.py -cs 10 -a {params.adapters} -r {input.ilmn_reads} -o {output} 2>&1 > {log} && "
+        "ls {output} | grep _clipped.fq | xargs fastqc -o {output}"
+        # "touch {output}"
 
 
 # rule bwa_mem:

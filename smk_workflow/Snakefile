@@ -51,6 +51,7 @@ rule all:
         expand("results/{experiment}/busco_graph/busco_figure.png", experiment=EXPERIMENT, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/medaka_{assembler}_bwa/idx1_aln_ilm_{experiment}_{barcode}.bam.sort", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon1/medaka_{assembler}_pilon1.complete.flag", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
+        expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.fasta", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         # expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon{iteration}/medaka_{assembler}_pilon{iteration}.fasta", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS, iteration=PILON_ITERATIONS),
         # expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon4/medaka_{assembler}_pilon4.fasta", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS, iteration=PILON_ITERATIONS),
         expand("results/{experiment}/{barcode}/ilmn_fastqc_before/fastqc_complete.flag", experiment=EXPERIMENT, barcode=BARCODES),
@@ -85,7 +86,7 @@ rule opt_read_filter:
     conda:
         "envs/python3.yaml"
     shell:
-        "python scripts/select_filter_params_by_cov.py -f {input} -s {params.genSize} -c {params.cov} --dump fastq -decall" #2>&1 > {log}
+        "python scripts/select_filter_params_by_cov.py -f {input} -s {params.genSize} -c {params.cov} --dump fastq -decall 2>&1 > {log}"
 
 
 # maybe implement a rule including trimming of 10 bases at start and end of each
@@ -245,8 +246,10 @@ rule busco_reference:
         outfile="results/{experiment}/{ref_name}/run_bacteria_odb10/short_summary.specific.{ref_name}.txt"
     conda:
         "envs/busco.yaml"
+    log:
+        "logs/{experiment}/{ref_name}/busco_reference.log"
     shell:
-        "busco -i {input.ref_genome} -l {params.genus} -o {params.outdir} -m genome -f && mv {params.tmp_out} {output.outfile} && cp {output.outfile} {params.summary_dir}"
+        "busco -i {input.ref_genome} -l {params.genus} -o {params.outdir} -m genome -f && mv {params.tmp_out} {output.outfile} && cp {output.outfile} {params.summary_dir} 2>&1 > {log}"
 
 
 rule busco_generate_plot:
@@ -264,7 +267,7 @@ rule busco_generate_plot:
     conda:
         "envs/busco.yaml"
     shell:
-        "python scripts/busco_generate_plot.py -wd {params.outdir}"
+        "python scripts/busco_generate_plot.py -wd {params.outdir}" # 2>&1 > {log}"
 
 
 rule fastqc_illumina_before:
@@ -279,7 +282,7 @@ rule fastqc_illumina_before:
         "envs/fastqc.yaml"
     shell:
         "mkdir -p {params.outdir} && "
-        "fastqc {input.ilmn_reads} -o {params.outdir} && "
+        "fastqc {input.ilmn_reads} -o {params.outdir} 2>&1 > {log} && "
         "touch {params.outdir}/fastqc_complete.flag"
 
 
@@ -301,8 +304,8 @@ checkpoint clip_adapters_sm:
         "logs/{experiment}/{barcode}/ilmn_clip_sm.log"
     shell:
         "mkdir -m 777 {output} -p && "
-        "python3 scripts/identify_and_clip_ilmn_adapters.py -cs 10 -a {params.adapters} -r {input.ilmn_reads} -o {output} 2>&1 > {log} && "
-        "ls {output} | grep _clipped.fq | xargs fastqc -o {output}"
+        "python3 scripts/identify_and_clip_ilmn_adapters.py -cs 10 -a {params.adapters} -r {input.ilmn_reads} -o {output} 2>&1 >> {log} && "
+        "ls {output} | grep _clipped.fq | xargs fastqc -o {output} 2>&1 >> {log}"
         # "touch {output}"
 
 

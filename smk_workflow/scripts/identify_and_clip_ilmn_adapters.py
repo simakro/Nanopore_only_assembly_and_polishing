@@ -268,7 +268,7 @@ def chk_clip_ilmn_reads(read_fq, args, return_dct):
     if extracted:
         os.remove(extracted)
     # return excluded_lst
-    return_dct[read_fq] = excluded_lst
+    return_dct[clipped_out] = excluded_lst
 
 
 def compare_excluded(return_dct, args):
@@ -279,36 +279,47 @@ def compare_excluded(return_dct, args):
     # else:
     fqs1 = set([r.split(" ")[0] for r in return_dct.values()[0]])
     fqs2 = set([r.split(" ")[0] for r in return_dct.values()[1]])
-    print("fqs1", fqs1)
-    print("fqs2", fqs2)
-    # asym = fqs1.intersection(fqs2)
     asym = fqs1.symmetric_difference(fqs2)
-    print("asym", asym)
-    excl_asym = {k:[r.split(" ")[0] for r in v if r.split(" ")[0] in asym] for k,v in return_dct.items()}
-    print("excl_asym", excl_asym)
+    excl_asym = {
+        k:[
+            r.split(" ")[0] for r in v if r.split(" ")[0] in asym
+            ] for k,v in return_dct.items()
+        }
+    # switch the exclusion lists
+    if len(excl_asym)==2:
+        key_lst = list(excl_asym.keys())
+        switch_dct = dict(zip(key_lst, key_lst[::-1]))
+        tmp_dict = {switch_dct[k]:v for k,v in excl_asym.items()}
+        excl_asym = tmp_dict 
+    else:
+        print(
+            "WARNING: excl_asym unexpectedly does not contain exactly 2 "\
+            "file-keys as expected for paired-end non-interleaved fastqs. "\
+            "Asymmetries in fastqs, if present, can not be fixed.‚"
+            )
+
     return excl_asym
 
 
 def repair_files(clipped_fq, excl_lst, args):
-    print(f"Repairing {clipped_fq}. Excl.-List: {excl_lst}")
+    print(f"Checking {clipped_fq}. Excl.-List: {excl_lst}")
     repaired = clipped_fq + ".rep"
+    excl_fq = "_".join(clipped_fq.split("_")[:-1]) + "_excluded.fq"
     fa_gen = sl_fastq_generator(clipped_fq)
-    with open(clipped_fq, "r") as clip, open(repaired, "w") as rep:
+    with open(clipped_fq, "r") as clip, open(repaired, "w") as rep, open(excl_fq, "a") as excl:
         for rid,seq,plus,qual in fa_gen:
+            read_data = [rid,seq,plus,qual]
             if rid.split(" ")[0] in excl_lst:
                 print(
                     f"Removed {rid} from {clipped_fq} to restore pe-fq symmetry"
                     )
+                for item in read_data:
+                    excl.write(f"{item}\n")
             else:
-                read_data = [rid,seq,plus,qual]
                 for item in read_data:
                     rep.write(f"{item}\n")
-
-
-    
-
-
-
+    os.remove(clipped_fq)
+    os.replace(repaired, clipped_fq)
 
 
 if __name__ == "__main__":

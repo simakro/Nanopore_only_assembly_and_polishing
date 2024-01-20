@@ -98,58 +98,59 @@ rule pilon_iteration_2:
         asm = "results/{experiment}/{barcode}/medaka_{assembler}_pilon1/medaka_{assembler}_pilon1.fasta",
         ilmn_reads=get_clipped_ilmn_reads
     output:
-        "results/{experiment}/{barcode}/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.fasta"
+        sort="results/{experiment}/{barcode}/medaka_{assembler}_pilon2/idx2_medaka_{assembler}_ilmn2pilon1.bam.sort",
+        asm="results/{experiment}/{barcode}/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.fasta"
     params:
         threads=8,
         # bwa_prefix="idx2_{experiment}_{barcode}_medaka_{assembler}_pilon1",
         # pilon_prefix="{experiment}_{barcode}_medaka_{assembler}_pilon2",
         outdir="results/{experiment}/{barcode}/medaka_{assembler}_pilon2",
         bwa_prefix="results/{experiment}/{barcode}/medaka_{assembler}_pilon2/idx2_medaka_{assembler}_pilon1",
-        pilon_prefix="results/{experiment}/{barcode}/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2",
-        sam_file="results/{experiment}/{barcode}/medaka_{assembler}_pilon2/idx2_medaka_{assembler}_aln_ilmn_pilon1.sam",
-        bam="results/{experiment}/{barcode}/medaka_{assembler}_pilon2/idx2_medaka_{assembler}_aln_ilmn_pilon1.bam"
+        pilon_prefix="medaka_{assembler}_pilon2", # results/{experiment}/{barcode}/medaka_{assembler}_pilon2/
+        sam_file="results/{experiment}/{barcode}/medaka_{assembler}_pilon2/medaka_{assembler}_ilmn2pilon1.sam",
+        bam="results/{experiment}/{barcode}/medaka_{assembler}_pilon2/idx2_medaka_{assembler}_ilmn2pilon1.bam"
     conda:
         "../envs/pilon_iteration.yaml"
     log:
         "logs/{experiment}/{barcode}/medaka_{assembler}_pilon2.log"
     shell:
         "mkdir -p {params.outdir} && "
-        "bwa-mem2 index {input.asm} -p {params.bwa_prefix} 2>&1 >> {log} && "
-        "bwa-mem2 mem -t {params.threads} {params.bwa_prefix} {input.ilmn_reads} > {params.sam_file}  2>&1 >> {log} && " # {input.ilmn_r1} {input.ilmn_r2}
-        "samtools view -hbS {params.sam_file} > {params.bam}  2>&1 >> {log} && "
-        "samtools sort {params.bam} > {output}  2>&1 >> {log} && "
-        "samtools index {output}  2>&1 >> {log} && "
+        "bwa-mem2 index {input.asm} -p {params.bwa_prefix} && "
+        "bwa-mem2 mem -t {params.threads} {params.bwa_prefix} {input.ilmn_reads} > {params.sam_file}  && " # {input.ilmn_r1} {input.ilmn_r2}
+        "samtools view -hbS {params.sam_file} > {params.bam} && "
+        "samtools sort {params.bam} > {output.sort} && "
+        "samtools index {output.sort} && "
         # "mv {params.prefix}.bam results/{wildcards.experiment}/{wildcards.barcode}/medaka_{wildcards.assembler} && " # this is just to test if the pilon WARNING that bam.bai index is older then BAM is related to moving the files around and getting new time stamps
         # "mv {params.prefix}* results/{wildcards.experiment}/{wildcards.barcode}/medaka_{wildcards.assembler} && "
         # "mv {params.sam_file} {params.outdir} 2>&1 > {log}"
-        "pilon -Xmx16G --genome {input.asm} --bam {params.bam} --output {params.pilon_prefix} --outdir {params.outdir} 2>&1 >> {log}"
+        "pilon -Xmx16G --genome {input.asm} --bam {output.sort} --output {params.pilon_prefix} --outdir {params.outdir} 2>&1 > {log}"
 
 
-rule pilon_iteration_3:
-    input:
-        asm = "results/{experiment}/{barcode}/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.fasta",
-        ilmn_reads=get_clipped_ilmn_reads
-    output:
-        "results/{experiment}/{barcode}/medaka_{assembler}_pilon3/medaka_{assembler}_pilon3.fasta"
-    params:
-        threads=8,
-        outdir="results/{experiment}/{barcode}/medaka_{assembler}_pilon3",
-        bwa_prefix="results/{experiment}/{barcode}/medaka_{assembler}_pilon3/idx3_medaka_{assembler}_pilon2",
-        pilon_prefix="results/{experiment}/{barcode}/medaka_{assembler}_pilon3/medaka_{assembler}_pilon3",
-        sam_file="results/{experiment}/{barcode}/medaka_{assembler}_pilon3/idx3_medaka_{assembler}_aln_ilmn_pilon2.sam",
-        bam="results/{experiment}/{barcode}/medaka_{assembler}_pilon3/idx3_medaka_{assembler}_aln_ilmn_pilon2.bam"
-    conda:
-        "../envs/pilon_iteration.yaml"
-    log:
-        "logs/{experiment}/{barcode}/medaka_{assembler}_pilon3.log"
-    shell:
-        "mkdir -p {params.outdir} && "
-        "bwa-mem2 index {input.asm} -p {params.bwa_prefix} 2>&1 >> {log} && "
-        "bwa-mem2 mem -t {params.threads} {params.bwa_prefix} {input.ilmn_reads} > {params.sam_file}  2>&1 >> {log} && " # {input.ilmn_r1} {input.ilmn_r2}
-        "samtools view -hbS {params.sam_file} > {params.bam}  2>&1 >> {log} && "
-        "samtools sort {params.bam} > {output}  2>&1 >> {log} && "
-        "samtools index {output}  2>&1 >> {log} && "
-        # "mv {params.prefix}.bam results/{wildcards.experiment}/{wildcards.barcode}/medaka_{wildcards.assembler} && " # this is just to test if the pilon WARNING that bam.bai index is older then BAM is related to moving the files around and getting new time stamps
-        # "mv {params.prefix}* results/{wildcards.experiment}/{wildcards.barcode}/medaka_{wildcards.assembler} && "
-        # "mv {params.sam_file} {params.outdir} 2>&1 > {log}"
-        "pilon -Xmx16G --genome {input.asm} --bam {params.bam} --output {params.pilon_prefix} --outdir {params.outdir} 2>&1 >> {log}"
+# rule pilon_iteration_3:
+#     input:
+#         asm = "results/{experiment}/{barcode}/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.fasta",
+#         ilmn_reads=get_clipped_ilmn_reads
+#     output:
+#         "results/{experiment}/{barcode}/medaka_{assembler}_pilon3/medaka_{assembler}_pilon3.fasta"
+#     params:
+#         threads=8,
+#         outdir="results/{experiment}/{barcode}/medaka_{assembler}_pilon3",
+#         bwa_prefix="results/{experiment}/{barcode}/medaka_{assembler}_pilon3/idx3_medaka_{assembler}_pilon2",
+#         pilon_prefix="results/{experiment}/{barcode}/medaka_{assembler}_pilon3/medaka_{assembler}_pilon3",
+#         sam_file="results/{experiment}/{barcode}/medaka_{assembler}_pilon3/idx3_medaka_{assembler}_aln_ilmn_pilon2.sam",
+#         bam="results/{experiment}/{barcode}/medaka_{assembler}_pilon3/idx3_medaka_{assembler}_aln_ilmn_pilon2.bam"
+#     conda:
+#         "../envs/pilon_iteration.yaml"
+#     log:
+#         "logs/{experiment}/{barcode}/medaka_{assembler}_pilon3.log"
+#     shell:
+#         "mkdir -p {params.outdir} && "
+#         "bwa-mem2 index {input.asm} -p {params.bwa_prefix} 2>&1 >> {log} && "
+#         "bwa-mem2 mem -t {params.threads} {params.bwa_prefix} {input.ilmn_reads} > {params.sam_file}  2>&1 >> {log} && " # {input.ilmn_r1} {input.ilmn_r2}
+#         "samtools view -hbS {params.sam_file} > {params.bam}  2>&1 >> {log} && "
+#         "samtools sort {params.bam} > {output}  2>&1 >> {log} && "
+#         "samtools index {output}  2>&1 >> {log} && "
+#         # "mv {params.prefix}.bam results/{wildcards.experiment}/{wildcards.barcode}/medaka_{wildcards.assembler} && " # this is just to test if the pilon WARNING that bam.bai index is older then BAM is related to moving the files around and getting new time stamps
+#         # "mv {params.prefix}* results/{wildcards.experiment}/{wildcards.barcode}/medaka_{wildcards.assembler} && "
+#         # "mv {params.sam_file} {params.outdir} 2>&1 > {log}"
+#         "pilon -Xmx16G --genome {input.asm} --bam {params.bam} --output {params.pilon_prefix} --outdir {params.outdir} 2>&1 >> {log}"

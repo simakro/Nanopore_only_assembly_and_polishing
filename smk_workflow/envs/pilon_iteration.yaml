@@ -4,3 +4,4 @@ dependencies:
   - bwa-mem2
   - samtools
   - pilon
+  - python = 3.9

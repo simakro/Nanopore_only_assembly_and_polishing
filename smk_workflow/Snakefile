@@ -58,7 +58,7 @@ rule all:
         # expand("results/{experiment}/{barcode}/ilmn_fastqc_after/fastqc_complete.flag", experiment=EXPERIMENT, barcode=BARCODES)
         expand("results/{experiment}/{barcode}/dnadiff/medaka_{assembler}/consensus.report", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/dnadiff/medaka_{assembler}_pilon1/medaka_{assembler}_pilon1.report", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
-
+        expand("results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.oriented.fasta", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
 
 rule preprocessing:
     input:
@@ -86,7 +86,7 @@ rule opt_read_filter:
     conda:
         "envs/python3.yaml"
     shell:
-        "python scripts/select_filter_params_by_cov.py -f {input} -s {params.genSize} -c {params.cov} --dump fastq -decall 2>&1 > {log}"
+        "python scripts/select_filter_params_by_cov_sm.py -f {input} -s {params.genSize} -c {params.cov} --dump fastq -decall 2>&1 > {log}"
 
 
 # maybe implement a rule including trimming of 10 bases at start and end of each
@@ -294,7 +294,6 @@ checkpoint clip_adapters_sm:
         # "results/{experiment}/{barcode}/ilmn_clip_sm/",
         # "results/{experiment}/{barcode}/ilmn_fastqc_after/fastqc_complete.flag",
         directory("results/{experiment}/{barcode}/ilmn_clip_sm"),
-
     params:
         # outdir="results/{experiment}/{barcode}/ilmn_clip_sm",
         adapters="resources/adapters_all_trimmomatic_condensed.fasta"
@@ -304,9 +303,61 @@ checkpoint clip_adapters_sm:
         "logs/{experiment}/{barcode}/ilmn_clip_sm.log"
     shell:
         "mkdir -m 777 {output} -p && "
-        "python3 scripts/identify_and_clip_ilmn_adapters.py -cs 10 -a {params.adapters} -r {input.ilmn_reads} -o {output} 2>&1 >> {log} && "
+        "python3 scripts/identify_and_clip_ilmn_adapters_sm.py -cs 10 -a {params.adapters} -r {input.ilmn_reads} -o {output} 2>&1 >> {log} && "
         "ls {output} | grep _clipped.fq | xargs fastqc -o {output} 2>&1 >> {log}"
         # "touch {output}"
+
+
+rule circlator_fixstart:
+    input:
+        "results/{experiment}/{barcode}/{assembly}.fasta"
+    output:
+        "results/{experiment}/{barcode}/circl_fixstart/{assembly}.oriented.fasta"#,
+        # directory("results/{experiment}/{barcode}/circlator")
+    params:
+        out_prefix = "results/{experiment}/{barcode}/circl_fixstart/{assembly}.oriented"
+    conda:
+        "envs/circlator.yaml"
+    log:
+        "logs/{experiment}/{barcode}/{assembly}/circlator_fixstart.log"
+    shell:
+        "circlator fixstart {input} {params.out_prefix} 2>&1 > {log}"
+
+# rule circlator_all:
+#     input:
+#         asm = "results/{experiment}/{barcode}/{assembly}.fasta",
+#         ont_reads = "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta"
+#     output:
+#         "results/{experiment}/{barcode}/circl_all/{assembly}.oriented.fasta"#,
+#         # directory("results/{experiment}/{barcode}/circlator")
+#     params:
+#         # out_prefix = "results/{experiment}/{barcode}/circl_all/{assembly}.oriented"
+#         out_dir = directory("results/{experiment}/{barcode}/circl_all")
+#     conda:
+#         "envs/circlator.yaml"
+#     log:
+#         "logs/{experiment}/{barcode}/{assembly}/circlator_all.log"
+#     shell:
+#         "circlator all {input.asm} {input.ont_reads} {params.out_dir} 2>&1 > {log}"
+
+rule classify_gtdbtk:
+    input:
+        asm = "results/{experiment}/{barcode}/{assembly}.oriented.fasta"
+    output:
+        # "results/{experiment}/{barcode}/circl_fixstart/{assembly}.oriented.fasta"#,
+
+    params:
+        # out_prefix = "results/{experiment}/{barcode}/circl_fixstart/{assembly}.oriented"
+        genome_dir = lambda x: os.path.split(input.asm)
+    threads:
+        8
+    conda:
+        "envs/gtdbtk.yaml"
+    log:
+        "logs/{experiment}/{barcode}/{assembly}/classify_gtdbtk.log"
+    shell:
+        # "gtdbtk classify_wf --genome_dir <my_genomes> --out_dir <output_dir> 2>&1 > {log}"
+        gtdbtk classify_wf --genome_dir /homes/simon/Nanopore_only_assembly_and_polishing/smk_workflow/results/SM0026_bacterial_genomes_KP/barcode02/medaka_flye_pilon2  --out_dir /homes/simon/Nanopore_only_assembly_and_polishing/smk_workflow/tests/gtdbtk2 --extension fasta --cpu {threads} --mash_db /homes/simon/Nanopore_only_assembly_and_polishing/smk_workflow/resources
 
 
 # rule bwa_mem:
@@ -339,3 +390,10 @@ checkpoint clip_adapters_sm:
 #         # # "mv {params.prefix}.bam results/{wildcards.experiment}/{wildcards.barcode}/medaka_{wildcards.assembler} && " # this is just to test if the pilon WARNING that bam.bai index is older then BAM is related to moving the files around and getting new time stamps
 #         # "mv {wildcards.assembly}* results/{wildcards.experiment}/{wildcards.barcode}/medaka_{wildcards.assembler} && "
 #         # "mv {params.sam_file} {params.outdir} 2>&1 > {log}"
+
+
+
+# classification
+# Plasmids
+# Synteny
+# Quality assessment (QUAST or similar)

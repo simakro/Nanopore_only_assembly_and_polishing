@@ -57,8 +57,10 @@ rule all:
         expand("results/{experiment}/{barcode}/ilmn_fastqc_before/fastqc_complete.flag", experiment=EXPERIMENT, barcode=BARCODES),
         # expand("results/{experiment}/{barcode}/ilmn_fastqc_after/fastqc_complete.flag", experiment=EXPERIMENT, barcode=BARCODES)
         expand("results/{experiment}/{barcode}/dnadiff/medaka_{assembler}/consensus.report", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
-        expand("results/{experiment}/{barcode}/dnadiff/medaka_{assembler}_pilon1/medaka_{assembler}_pilon1.report", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
-        expand("results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.oriented.fasta", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
+        expand("results/{experiment}/{barcode}/dnadiff/medaka_{assembler}_pilon1/medaka_{assembler}_pilon1.report", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
+        expand("results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.oriented.fasta", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
+        expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk.bac120.summary.tsv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
+
 
 rule preprocessing:
     input:
@@ -342,22 +344,25 @@ rule circlator_fixstart:
 
 rule classify_gtdbtk:
     input:
-        asm = "results/{experiment}/{barcode}/{assembly}.oriented.fasta"
+        asm = "results/{experiment}/{barcode}/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.fasta"
     output:
         # "results/{experiment}/{barcode}/circl_fixstart/{assembly}.oriented.fasta"#,
-
+        # directory("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk")
+        "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk.bac120.summary.tsv"
     params:
         # out_prefix = "results/{experiment}/{barcode}/circl_fixstart/{assembly}.oriented"
-        genome_dir = lambda x: os.path.split(input.asm)
+        genome_dir = "results/{experiment}/{barcode}/medaka_{assembler}_pilon2",
+        out_dir= "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk"
     threads:
         8
     conda:
         "envs/gtdbtk.yaml"
     log:
-        "logs/{experiment}/{barcode}/{assembly}/classify_gtdbtk.log"
+        "logs/{experiment}/{barcode}/medaka_{assembler}_pilon2/classify_gtdbtk.log"
     shell:
         # "gtdbtk classify_wf --genome_dir <my_genomes> --out_dir <output_dir> 2>&1 > {log}"
-        gtdbtk classify_wf --genome_dir /homes/simon/Nanopore_only_assembly_and_polishing/smk_workflow/results/SM0026_bacterial_genomes_KP/barcode02/medaka_flye_pilon2  --out_dir /homes/simon/Nanopore_only_assembly_and_polishing/smk_workflow/tests/gtdbtk2 --extension fasta --cpu {threads} --mash_db /homes/simon/Nanopore_only_assembly_and_polishing/smk_workflow/resources
+        "mamba env config vars set GTDBTK_DATA_PATH=/homes/simon/.conda/envs/gtdbtk/share/gtdbtk-2.3.2/db && "
+        "gtdbtk classify_wf --genome_dir {params.genome_dir} --out_dir {params.out_dir} --extension fasta --cpu {threads} --mash_db resources 2>&1 > {log}"
 
 
 # rule bwa_mem:

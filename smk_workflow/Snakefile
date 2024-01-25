@@ -59,7 +59,9 @@ rule all:
         expand("results/{experiment}/{barcode}/dnadiff/medaka_{assembler}/consensus.report", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/dnadiff/medaka_{assembler}_pilon1/medaka_{assembler}_pilon1.report", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.oriented.fasta", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
-        expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk.bac120.summary.tsv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
+        expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk.bac120.summary.tsv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
+        expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_plasflow/medaka_{assembler}_pilon2_plasflow.tsv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
+        expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_plasclass/plasclass.probs.out", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
 
 
 rule preprocessing:
@@ -365,6 +367,50 @@ rule classify_gtdbtk:
         "gtdbtk classify_wf --genome_dir {params.genome_dir} --out_dir {params.out_dir} --extension fasta --cpu {threads} --mash_db resources 2>&1 > {log}"
 
 
+rule plasflow:
+    input:
+        asm = "results/{experiment}/{barcode}/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.fasta"
+    output:
+        # "results/{experiment}/{barcode}/circl_fixstart/{assembly}.oriented.fasta"#,
+        # directory("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk")
+        "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_plasflow/medaka_{assembler}_pilon2_plasflow.tsv"
+    params:
+        # out_prefix = "results/{experiment}/{barcode}/circl_fixstart/{assembly}.oriented"
+        # genome_dir = "results/{experiment}/{barcode}/medaka_{assembler}_pilon2",
+        # out_dir= "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk"
+    conda:
+        "envs/plasflow.yaml"
+    log:
+        "logs/{experiment}/{barcode}/medaka_{assembler}_pilon2/plasflow.log"
+    shell:
+        # "curr_env=$(conda info --env | grep '*' | rev | cut -d' ' -f1 | rev) && "
+        # "python $curr_env/lib/python3.5/site-packages/PlasFlow/PlasFlow.py --input {input} --output {output} 2>&1 > {log}"
+        "python pkgs/PlasFlow/PlasFlow.py --input {input} --output {output} 2>&1 > {log}"
+
+
+rule plasclass:
+    input:
+        asm = "results/{experiment}/{barcode}/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.fasta"
+    output:
+        # "results/{experiment}/{barcode}/circl_fixstart/{assembly}.oriented.fasta"#,
+        # directory("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk")
+        "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_plasclass/plasclass.probs.out"
+    params:
+        # out_prefix = "results/{experiment}/{barcode}/circl_fixstart/{assembly}.oriented"
+        # genome_dir = "results/{experiment}/{barcode}/medaka_{assembler}_pilon2",
+        # out_dir= "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk"
+    threads:
+        8
+    conda:
+        "envs/plasclass.yaml"
+    log:
+        "logs/{experiment}/{barcode}/medaka_{assembler}_pilon2/plasclass.log"
+    shell:
+        # "curr_env=$(conda info --env | grep '*' | rev | cut -d' ' -f1 | rev) && "
+        # "python $curr_env/lib/python3.9/site-packages/plasclass/plasclass.py -f {input} -o {output} -p {threads}"
+        "python pkgs/PlasClass/classify_fasta.py -f {input} -o {output} -p {threads}"
+        
+
 # rule bwa_mem:
 #     input:
 #         raw_asm="results/{experiment}/{barcode}/{assembly}.fasta",
@@ -398,7 +444,7 @@ rule classify_gtdbtk:
 
 
 
-# classification
+# classification; checked
 # Plasmids
 # Synteny
 # Quality assessment (QUAST or similar)

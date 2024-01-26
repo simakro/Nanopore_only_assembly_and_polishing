@@ -10,6 +10,7 @@ def rename_busco_files(path):
     busco_sums = glob(os.path.join(path, "short_summary.specific.*"))
     for file in busco_sums:
         asmnm = "_".join(file.split("specific.")[1].split(".txt")[0].split("."))
+        asmnm = analyze_asm_name(asmnm)
         new_name =  f"short_summary.specific.bacteria.{asmnm}.txt"
         os.replace(file, os.path.join(path, new_name))
 

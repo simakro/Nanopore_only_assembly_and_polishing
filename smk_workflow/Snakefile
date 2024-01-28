@@ -58,8 +58,8 @@ rule all:
         expand("results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.oriented.fasta", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk.bac120.summary.tsv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_plasflow/medaka_{assembler}_pilon2_plasflow.tsv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
-        expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_plasclass/plasclass.probs.out", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
-
+        expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_plasclass/plasclass.probs.out", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
+        expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_classification.txt", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
 
 rule preprocessing:
     input:
@@ -171,31 +171,33 @@ rule polish_medaka:
 
 rule dnadiff:
     input:
-        asm="results/{experiment}/{barcode}/{assembly}.fasta",
+        # asm="results/{experiment}/{barcode}/{assembly}.fasta",
+        asm="results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.oriented.fasta",
         reference=get_ref_path
         #, bam="results/{experiment}/{barcode}/medaka_{assembler}_bwa/idx{iteration}_aln_ilm_{experiment}_{barcode}.bam.sort"
     output:
-        "results/{experiment}/{barcode}/dnadiff/{assembly}.report"
+        "results/{experiment}/{barcode}/dnadiff/medaka_{assembler}_pilon2.oriented.report"
     params:
-        prefix="results/{experiment}/{barcode}/dnadiff/{assembly}"
+        prefix="results/{experiment}/{barcode}/dnadiff/medaka_{assembler}_pilon2.oriented"
     conda:
         "envs/dnadiff.yaml"
     log:
-        "logs/{experiment}/{barcode}/dnadiff/{assembly}.log"
+        "logs/{experiment}/{barcode}/dnadiff/medaka_{assembler}_pilon2.oriented.log"
     shell:
         "dnadiff  -p {params.prefix} {input.reference} {input.asm} 2>&1 > {log}"
 
 
-rule prokka:
+rule prokka_expected_ref:
     input:
-        asm="results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta",
+        # asm="results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta",
+        asm="results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.oriented.fasta",
         prot_file=get_ref_proteins
     output:
         protgbk_dir=directory("results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk"),
         protg_tsv="results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk/{experiment}_{barcode}_{assembler}_prokka_protgbk.tsv"
     params:
         genus=get_prokka_genus,
-        species=get_prokka_species
+        # species=get_prokka_species
     log:
         "logs/{experiment}/{barcode}/prokka_medaka_{assembler}.log"
     conda:
@@ -205,28 +207,9 @@ rule prokka:
         "prokka --proteins {input.prot_file} {input.asm} --outdir {output.protgbk_dir} --prefix {wildcards.experiment}_{wildcards.barcode}_{wildcards.assembler}_prokka_protgbk --force 2>&1 > {log}"
 
 
-# rule busco_nanopore:
-#     input:
-#         asm="results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta"
-#     output:
-#         outfile="results/{experiment}/{barcode}/busco_medaka_{assembler}/run_bacteria_odb10/short_summary.specific.{barcode}.txt"
-#     params:
-#         outdir="results/{experiment}/{barcode}/busco_medaka_{assembler}",
-#         genus=BUSCO_GENUS,
-#         tmp_out="results/{experiment}/{barcode}/busco_medaka_{assembler}/run_bacteria_odb10/short_summary.txt",
-#         summary_dir=get_busco_graph_outdir
-#     log:
-#         "logs/{experiment}/{barcode}/busco_medaka_{assembler}.log"
-#     conda:
-#         "envs/busco.yaml"
-#     shell:
-#         "busco -i {input.asm} -l {params.genus} -o {params.outdir} -m genome -f && mv {params.tmp_out} {output.outfile} 2>&1 > {log} && cp {output.outfile} {params.summary_dir}" # --auto-lineage-prok
-
-
 rule busco_assembly:
     input:
-        # asm="results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta"
-        asm="results/{experiment}/{barcode}/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.fasta"
+        asm="results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.oriented.fasta"
     output:
         outfile="results/{experiment}/{barcode}/busco_medaka_{assembler}_pilon2/run_bacteria_odb10/short_summary.specific.{barcode}.txt"
     params:
@@ -271,9 +254,6 @@ rule busco_reference:
 
 rule busco_generate_plot:
     input:
-        # ref_inf="results/{experiment}/busco_graph_{assembler}/short_summary.specific.herpesviridae_odb10.MuridHerpesvirus_8_Berlin.txt",
-        # ref_inf="results/{experiment}/busco_graph_{assembler}/short_summary.specific.{BUSCO_GENUS}_odb10.{REFERENCE}.txt",
-        # expand("results/{experiment}/{barcode}/busco_medaka_{assembler}/run_{genus}_odb10/short_summary.txt", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS, genus=BUSCO_GENUS),
         expand("results/{experiment}/{barcode}/busco_medaka_{assembler}/run_{genus}_odb10/short_summary.specific.{barcode}.txt", experiment=EXPERIMENT, assembler=ASSEMBLERS, genus=BUSCO_GENUS, barcode=BARCODES),
         expand("results/{experiment}/{reference}/run_{genus}_odb10/short_summary.specific.{reference}.txt", experiment=EXPERIMENT, reference=REFERENCES, genus=BUSCO_GENUS)
     output:
@@ -363,13 +343,10 @@ rule circlator_fixstart:
 
 rule classify_gtdbtk:
     input:
-        asm = "results/{experiment}/{barcode}/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.fasta"
+        asm = "results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.oriented.fasta"
     output:
-        # "results/{experiment}/{barcode}/circl_fixstart/{assembly}.oriented.fasta"#,
-        # directory("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk")
         "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk.bac120.summary.tsv"
     params:
-        # out_prefix = "results/{experiment}/{barcode}/circl_fixstart/{assembly}.oriented"
         genome_dir = "results/{experiment}/{barcode}/medaka_{assembler}_pilon2",
         out_dir= "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk"
     threads:
@@ -382,6 +359,29 @@ rule classify_gtdbtk:
         # "gtdbtk classify_wf --genome_dir <my_genomes> --out_dir <output_dir> 2>&1 > {log}"
         "mamba env config vars set GTDBTK_DATA_PATH=/homes/simon/.conda/envs/gtdbtk/share/gtdbtk-2.3.2/db && "
         "gtdbtk classify_wf --genome_dir {params.genome_dir} --out_dir {params.out_dir} --extension fasta --cpu {threads} --mash_db resources 2>&1 > {log}"
+
+
+rule set_gtdbtk_classification:
+    input:
+        "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk.bac120.summary.tsv"
+    output:
+        "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_classification.txt"
+    run:
+        calls = []
+        with open(input[0], "r") as gtdbtk_out, open(output[0], "w") as out:
+            data = gtdbtk_out.read().split("\n")
+            keys = data[0].strip().split("\t")
+            for line in data[1:]:
+                if len(line.strip()) > 0:
+                    data = line.strip().split("\t")
+                    ddct = dict(zip(keys, data))
+                    print(ddct)
+                    calls.append(ddct)
+                    out.write(ddct["classification"])
+                    
+
+
+
 
 
 rule plasflow:
@@ -428,20 +428,20 @@ rule plasclass:
         "python pkgs/PlasClass/classify_fasta.py -f {input} -o {output} -p {threads}"
         
 
-rule circos:
-    input:
-        asm = "results/{experiment}/{barcode}/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.fasta"
-    output:
-        "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_plasclass/plasclass.probs.out"
-    threads:
-        8
-    conda:
-        "envs/circos.yaml"
-    log:
-        "logs/{experiment}/{barcode}/medaka_{assembler}_pilon2/circos.log"
-    shell:
-        # "curr_env=$(conda info --env | grep '*' | rev | cut -d' ' -f1 | rev) && "
-        # "python $curr_env/lib/python3.9/site-packages/plasclass/plasclass.py -f {input} -o {output} -p {threads}"
+# rule circos:
+#     input:
+#         asm = "results/{experiment}/{barcode}/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.fasta"
+#     output:
+#         "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_plasclass/plasclass.probs.out"
+#     threads:
+#         8
+#     conda:
+#         "envs/circos.yaml"
+#     log:
+#         "logs/{experiment}/{barcode}/medaka_{assembler}_pilon2/circos.log"
+#     shell:
+#         # "curr_env=$(conda info --env | grep '*' | rev | cut -d' ' -f1 | rev) && "
+#         # "python $curr_env/lib/python3.9/site-packages/plasclass/plasclass.py -f {input} -o {output} -p {threads}"
 
 
 # classification; checked

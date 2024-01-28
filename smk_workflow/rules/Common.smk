@@ -27,11 +27,11 @@ def get_draft_asm(wildcards):
 
 
 def get_prokka_genus(wildcards):
-    return SAMPLE_INFO[wildcards.barcode]["genus"]
+    return SAMPLE_INFO[wildcards.barcode]["genus_expected"]
 
 
 def get_prokka_species(wildcards):
-    return SAMPLE_INFO[wildcards.barcode]["species"]
+    return SAMPLE_INFO[wildcards.barcode]["species_expected"]
 
 
 def get_len_filt_param(wildcards):

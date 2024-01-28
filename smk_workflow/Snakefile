@@ -189,14 +189,9 @@ rule dnadiff:
 rule prokka:
     input:
         asm="results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta",
-        # prot_gbk="resources/KP202868.1_Murid_herpesvirus_8_isolate_Berlin.gbk"
-        # prot_gbk=f"resources/{experiment}/{REFERENCE}.gbk"
-        # ref="results/{experiment}/{reference}",
         prot_file=get_ref_proteins
     output:
-        # genusdb_dir=directory("results/{experiment}/{barcode}/prokka_medaka_{assembler}_genusdb"),
         protgbk_dir=directory("results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk"),
-        # genus_tsv="results/{experiment}/{barcode}/prokka_medaka_{assembler}_genusdb/{experiment}_{barcode}_{assembler}_prokka_genusdb.tsv",
         protg_tsv="results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk/{experiment}_{barcode}_{assembler}_prokka_protgbk.tsv"
     params:
         genus=get_prokka_genus,
@@ -206,8 +201,6 @@ rule prokka:
     conda:
         "envs/prokka.yaml"
     shell:
-        # "prokka --kingdom Viruses --genus Muromegalovirus {input.asm} --usegenus --outdir {output.genusdb_dir} --prefix {wildcards.experiment}_{wildcards.barcode}_{wildcards.assembler}_prokka_genusdb --force && " #  --addgenes --rawproduct
-        # "prokka --kingdom Viruses --protein {input.prot_gbk} {input.asm} --outdir {output.protgbk_dir} --prefix {wildcards.experiment}_{wildcards.barcode}_{wildcards.assembler}_prokka_protgbk --force" # --genus Muromegalovirus --rawproduct
         # "prokka --kingdom Bacteria --genus {params.genus} --species {params.species} {input.asm} --usegenus --outdir {output.genusdb_dir} --prefix {wildcards.experiment}_{wildcards.barcode}_{wildcards.assembler}_prokka_genusdb --force && " 
         "prokka --proteins {input.prot_file} {input.asm} --outdir {output.protgbk_dir} --prefix {wildcards.experiment}_{wildcards.barcode}_{wildcards.assembler}_prokka_protgbk --force 2>&1 > {log}"
 
@@ -349,6 +342,7 @@ rule circlator_fixstart:
     shell:
         "circlator fixstart {input} {params.out_prefix} 2>&1 > {log}"
 
+
 # rule circlator_all:
 #     input:
 #         asm = "results/{experiment}/{barcode}/{assembly}.fasta",
@@ -365,6 +359,7 @@ rule circlator_fixstart:
 #         "logs/{experiment}/{barcode}/{assembly}/circlator_all.log"
 #     shell:
 #         "circlator all {input.asm} {input.ont_reads} {params.out_dir} 2>&1 > {log}"
+
 
 rule classify_gtdbtk:
     input:
@@ -433,42 +428,25 @@ rule plasclass:
         "python pkgs/PlasClass/classify_fasta.py -f {input} -o {output} -p {threads}"
         
 
-# rule bwa_mem:
-#     input:
-#         raw_asm="results/{experiment}/{barcode}/{assembly}.fasta",
-#         # ilmn_r1,ilmn_r2=get_ilmn_reads
-#         ilmn_reads=get_clipped_ilmn_reads
-#     output:
-#         "results/{experiment}/{barcode}/{assembly}/ilmn_to_asm.bam.sort"#,
-#         # outdir=directory("results/{experiment}/{barcode}/medaka_{assembler}/bwa")
-#     params:
-#         threads=16,
-#         # prefix="idx1_medaka_{assembler}_{experiment}_{barcode}",
-#         outdir="results/{experiment}/{barcode}/bwa/{assembly}",
-#         sam_file="results/{experiment}/{barcode}/bwa/{assembly}/ilmn_to_asm.sam",
-#         bam="results/{experiment}/{barcode}/bwa/{assembly}/ilmn_to_asm.bam"
-#     conda:
-#         "envs/bwa-mem2.yaml"
-#     log:
-#         "logs/{experiment}/{barcode}/bwa/{assembly}/ilmn_to_asm.log"
-#     shell:
-#         "mkdir -p {params.outdir} && "
-#         "cd  {params.outdir} && "
-#         "pwd && "
-#         "bwa-mem2 index {input.raw_asm} -p {wildcards.assembly} && "
-#         "bwa-mem2 mem -t {params.threads} {wildcards.assembly} {input.ilmn_reads} > {params.sam_file} && " # {input.ilmn_r1} {input.ilmn_r2}
-#         "samtools view -hbS {params.sam_file} > {params.bam} && "
-#         "samtools sort {params.bam} > {output} && "
-#         "samtools index {output} &&  2>&1 > {log}"
-#         # # "mv {params.prefix}.bam results/{wildcards.experiment}/{wildcards.barcode}/medaka_{wildcards.assembler} && " # this is just to test if the pilon WARNING that bam.bai index is older then BAM is related to moving the files around and getting new time stamps
-#         # "mv {wildcards.assembly}* results/{wildcards.experiment}/{wildcards.barcode}/medaka_{wildcards.assembler} && "
-#         # "mv {params.sam_file} {params.outdir} 2>&1 > {log}"
-
+rule circos:
+    input:
+        asm = "results/{experiment}/{barcode}/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.fasta"
+    output:
+        "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_plasclass/plasclass.probs.out"
+    threads:
+        8
+    conda:
+        "envs/circos.yaml"
+    log:
+        "logs/{experiment}/{barcode}/medaka_{assembler}_pilon2/circos.log"
+    shell:
+        # "curr_env=$(conda info --env | grep '*' | rev | cut -d' ' -f1 | rev) && "
+        # "python $curr_env/lib/python3.9/site-packages/plasclass/plasclass.py -f {input} -o {output} -p {threads}"
 
 
 # classification; checked
 # Plasmids; checked
-# transfer BUSCO plot generation downstream of classifciation
+# transfer BUSCO plot generation downstream of classifciation; checked
 # Synteny
 # Circular plot with GC skew etc.
 # Quality assessment (QUAST or similar)

@@ -4,7 +4,7 @@ def get_ref_path(wildcards):
     return os.path.join("resources", wildcards.experiment, ref_name)
 
 
-def get_ref_proteins(wildcards): # adapt to also accept .gb (which is same format as gbk) extensioon and .faa which is a different pure protein format usable for prokka --proteins
+def get_ref_proteins(wildcards): # adapt to also accept .gb (which is same format as gbk) extension and .faa which is a different pure protein format usable for prokka --proteins
     reference = SAMPLE_INFO[wildcards.barcode]["ref"]
     comp_ext = [".gbk", ".gb", ".faa"]
     prot_files = [f'{(".").join(reference.split(".")[:-1])}{ext}' for ext in comp_ext]
@@ -27,11 +27,11 @@ def get_draft_asm(wildcards):
 
 
 def get_prokka_genus(wildcards):
-    return SAMPLE_INFO[wildcards.barcode]["genus_expected"]
+    return SAMPLE_INFO[wildcards.barcode]["genus_fallback"]
 
 
 def get_prokka_species(wildcards):
-    return SAMPLE_INFO[wildcards.barcode]["species_expected"]
+    return SAMPLE_INFO[wildcards.barcode]["species_fallback"]
 
 
 def get_len_filt_param(wildcards):

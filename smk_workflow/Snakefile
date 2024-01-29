@@ -24,6 +24,9 @@ BARCODES = [
 with open(os.path.join("data", EXPERIMENT, "Sample_Info.json")) as sinfo:
     SAMPLE_INFO = json.load(sinfo)
 
+with open(os.path.join("resources", "GTDBTK_classification_info.json")) as gcinfo:
+    GTDB_TRANSL = json.load(gcinfo)
+
 ASSEMBLERS = ["flye"] # , "canu"
 GENOME_SIZE = 3000000
 COVERAGE = 50
@@ -193,18 +196,48 @@ rule prokka_expected_ref:
         asm="results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.oriented.fasta",
         prot_file=get_ref_proteins
     output:
-        protgbk_dir=directory("results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk"),
-        protg_tsv="results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk/{experiment}_{barcode}_{assembler}_prokka_protgbk.tsv"
+        protgbk_dir=directory("results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk_exp"),
+        protg_tsv="results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk_exp/{experiment}_{barcode}_{assembler}_prokka_protgbk_exp.tsv"
     params:
         genus=get_prokka_genus,
         # species=get_prokka_species
     log:
-        "logs/{experiment}/{barcode}/prokka_medaka_{assembler}.log"
+        "logs/{experiment}/{barcode}/prokka_medaka_{assembler}_exp.log"
     conda:
         "envs/prokka.yaml"
     shell:
         # "prokka --kingdom Bacteria --genus {params.genus} --species {params.species} {input.asm} --usegenus --outdir {output.genusdb_dir} --prefix {wildcards.experiment}_{wildcards.barcode}_{wildcards.assembler}_prokka_genusdb --force && " 
-        "prokka --proteins {input.prot_file} {input.asm} --outdir {output.protgbk_dir} --prefix {wildcards.experiment}_{wildcards.barcode}_{wildcards.assembler}_prokka_protgbk --force 2>&1 > {log}"
+        "prokka --proteins {input.prot_file} {input.asm} --outdir {output.protgbk_dir} --prefix {wildcards.experiment}_{wildcards.barcode}_{wildcards.assembler}_prokka_protgbk_exp --force 2>&1 > {log}"
+
+
+rule get_ref_based_on_gtdbtk_class:
+    input:
+        "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_classification.txt"
+    output:
+        "results/{experiment}/{barcode}/got_ref_for_medaka_{assembler}_pilon2_gtdbtk.flag"
+    run:
+        spec_call = SAMPLE_INFO[""]
+
+
+rule prokka_gtdbtk_ref:
+    input:
+        "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_classification.txt",
+        "results/{experiment}/{barcode}/got_ref_for_medaka_{assembler}_pilon2_gtdbtk.flag",
+        asm="results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.oriented.fasta",
+        # !!!prot_file=get_ref_proteins
+    output:
+        protgbk_dir=directory("results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk_class"),
+        protg_tsv="results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk_class/{experiment}_{barcode}_{assembler}_prokka_protgbk_class.tsv"
+    params:
+        # !!!genus=get_prokka_genus,
+        # species=get_prokka_species
+    log:
+        "logs/{experiment}/{barcode}/prokka_medaka_{assembler}_class.log"
+    conda:
+        "envs/prokka.yaml"
+    shell:
+        # "prokka --kingdom Bacteria --genus {params.genus} --species {params.species} {input.asm} --usegenus --outdir {output.genusdb_dir} --prefix {wildcards.experiment}_{wildcards.barcode}_{wildcards.assembler}_prokka_genusdb --force && " 
+        "prokka --proteins {input.prot_file} {input.asm} --outdir {output.protgbk_dir} --prefix {wildcards.experiment}_{wildcards.barcode}_{wildcards.assembler}_prokka_protgbk_class --force 2>&1 > {log}"
 
 
 rule busco_assembly:
@@ -375,19 +408,28 @@ rule set_gtdbtk_classification:
                 if len(line.strip()) > 0:
                     data = line.strip().split("\t")
                     ddct = dict(zip(keys, data))
-                    print(ddct)
                     calls.append(ddct)
                     class_tree = ddct["classification"]
-                    spec_class = class_tree.split("_")[-1]
-                    out.write(spec_class)
-                    SAMPLE_INFO[wildcards.barcode]["gtdbtk_class"] = class_tree
-                    SAMPLE_INFO[wildcards.barcode]["gtdbtk_spec"] = spec_class
-                    print("SampleInfo:", SAMPLE_INFO[wildcards.barcode]["gtdbtk_spec"])
+                    class_dct = dict([call.split("__") for call in class_tree.split(";")])
+                    print("class_dct", class_dct)
+                    class_dct = {GTDB_TRANSL[k]:v for k,v in class_dct.items()}
+                    print("class_dct", class_dct)
+
+
+                    # gtdbtk_call = class_tree.split("_")[-1]
+                    # if len() != 2:
+                    #     print(
+                    #         f"WARNING: GTDBTK call is not in form \'Genus "
+                    #         f" species\'. Length class_tree.split = {len(class_tree.split("_"))}"
+                    #     )
+                    # spec_genus, spec_class = class_tree.split("_")[0], class_tree.split("_")[-1]
+                    # out.write(spec_class)
+                    # SAMPLE_INFO[wildcards.barcode]["gtdbtk_class"] = class_tree
+                    # SAMPLE_INFO[wildcards.barcode]["gtdbtk_call"] = gtdbtk_call
+                    # SAMPLE_INFO[wildcards.barcode]["gtdbtk_genus"] = spec_genus
+                    # SAMPLE_INFO[wildcards.barcode]["gtdbtk_spec"] = spec_class
+                    # print("SampleInfo:", SAMPLE_INFO[wildcards.barcode]["gtdbtk_spec"])
                     
-
-
-
-
 
 rule plasflow:
     input:

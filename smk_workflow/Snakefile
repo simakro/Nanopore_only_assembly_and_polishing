@@ -30,7 +30,7 @@ with open(os.path.join("resources", "GTDBTK_classification_info.json")) as gcinf
 ASSEMBLERS = ["flye"] # , "canu"
 GENOME_SIZE = 3000000
 COVERAGE = 50
-REFERENCES = [".".join(SAMPLE_INFO[barcode]["ref"].split(".")[:-1]) for barcode in SAMPLE_INFO]
+REFERENCES = [".".join(SAMPLE_INFO[barcode]["ref_fallback"].split(".")[:-1]) for barcode in SAMPLE_INFO]
 # REFERENCE, REF_EXT = ".".join(REFERENCE.split(".")[:-1]), REFERENCE.split(".")[-1]
 # BUSCO_GENUS = "herpesviridae"
 BUSCO_GENUS = "bacteria"
@@ -177,7 +177,6 @@ rule dnadiff:
         # asm="results/{experiment}/{barcode}/{assembly}.fasta",
         asm="results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.oriented.fasta",
         reference=get_ref_path
-        #, bam="results/{experiment}/{barcode}/medaka_{assembler}_bwa/idx{iteration}_aln_ilm_{experiment}_{barcode}.bam.sort"
     output:
         "results/{experiment}/{barcode}/dnadiff/medaka_{assembler}_pilon2.oriented.report"
     params:
@@ -325,7 +324,7 @@ checkpoint clip_adapters_sm:
     output:
         # "results/{experiment}/{barcode}/ilmn_clip_sm/",
         # "results/{experiment}/{barcode}/ilmn_fastqc_after/fastqc_complete.flag",
-        directory("results/{experiment}/{barcode}/ilmn_clip_sm"),
+        directory("results/{experiment}/{barcode}/ilmn_clip_sm")
     params:
         # outdir="results/{experiment}/{barcode}/ilmn_clip_sm",
         adapters="resources/adapters_all_trimmomatic_condensed.fasta"
@@ -410,27 +409,68 @@ rule set_gtdbtk_classification:
                     ddct = dict(zip(keys, data))
                     calls.append(ddct)
                     class_tree = ddct["classification"]
-                    class_dct = dict([call.split("__") for call in class_tree.split(";")])
+                    class_dct = dict(
+                        [call.split("__") for call in class_tree.split(";")]
+                        )
                     print("class_dct", class_dct)
                     class_dct = {GTDB_TRANSL[k]:v for k,v in class_dct.items()}
                     print("class_dct", class_dct)
-
-
-
-                    # gtdbtk_call = class_tree.split("_")[-1]
-                    # if len() != 2:
-                    #     print(
-                    #         f"WARNING: GTDBTK call is not in form \'Genus "
-                    #         f" species\'. Length class_tree.split = {len(class_tree.split("_"))}"
-                    #     )
-                    # spec_genus, spec_class = class_tree.split("_")[0], class_tree.split("_")[-1]
-                    # out.write(spec_class)
-                    # SAMPLE_INFO[wildcards.barcode]["gtdbtk_class"] = class_tree
-                    # SAMPLE_INFO[wildcards.barcode]["gtdbtk_call"] = gtdbtk_call
-                    # SAMPLE_INFO[wildcards.barcode]["gtdbtk_genus"] = spec_genus
-                    # SAMPLE_INFO[wildcards.barcode]["gtdbtk_spec"] = spec_class
-                    # print("SampleInfo:", SAMPLE_INFO[wildcards.barcode]["gtdbtk_spec"])
+                    class_cats = [
+                        "gtdb_species",
+                        "gtdb_genus",
+                        "gtdb_family",
+                        "gtdb_order",
+                        "gtdb_class",
+                        "gtdb_phylum",
+                        "gtdb_domain",
+                        ]
+                    spec_call = False
+                    for cat in class_cats:
+                        try:
+                            gtdbtk_call = class_dct[cat]
+                            print(f"INFO: Using {cat} as gtbdtk call category.")
+                            print(f"GTDBTK call: {class_dct[cat]}")
+                            if cat=="gtdb_species":
+                                spec_call = True
+                            break
+                        except:
+                            print(f"WARNING: gtdbtk did not yield a {cat} call.")
+                    out.write(gtdbtk_call)
+                    for cat in class_dct:
+                        SAMPLE_INFO[wildcards.barcode][cat] = class_dct[cat]
+                    SAMPLE_INFO[wildcards.barcode]["gtdbtk_ref"] = ddct["fastani_reference"]
+                    print(f"Suggested reference: {SAMPLE_INFO[wildcards.barcode]['gtdbtk_ref']}")
                     
+
+rule confirm_or_get_reference:
+    input:
+        "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_classification.txt"
+    output:
+        "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/confirm_or_get_reference.flag"
+    run:
+        best_ref = SAMPLE_INFO[wildcards.barcode]["gtdbtk_ref"]
+        ref_dir = os.path.join("resources", wildcards.experiment)
+        avail_ref = glob.glob(os.path.join(ref_dir, f"*{best_ref}*"))
+        print("avail_ref", avail_ref)
+        req_ext = ["fna", "fasta", "fa", "faa", "gbk", "gb"]
+        if len(avail_ref) > 0:
+            print("Signature of best ref already present in resources")
+        corr_ext = [f.split(".")[-1] for f in avail_ref if f.split(".")[-1] in req_ext]
+        # corr_ext = [f for f in avail_ref if f.split(".")[-1] in req_ext]
+        print("corr_ext", corr_ext)
+        ref_type = {"fna": "asm", "fasta": "asm", "fa": "asm", "faa": "prot", "gbk": "prot", "gb": "prot"}
+        ref_set = {ref_type[ext] for ext in corr_ext}
+        if len(ref_set) >= 2:
+            print("It appears all required reference files are present.")
+        else:
+            print("Some reference file/s is/are missing. Attempting download")
+        out_flag = open(output[0], "w")
+        out_flag.close()
+
+
+
+        # with open(input[0], "r") as
+
 
 rule plasflow:
     input:
@@ -498,3 +538,4 @@ rule plasclass:
 # Synteny
 # Circular plot with GC skew etc.
 # Quality assessment (QUAST or similar)
+# find a way to remove clipped illumina reads (temp() not working due to unknown name)

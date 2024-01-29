@@ -11,7 +11,6 @@ def get_ref_proteins(wildcards): # adapt to also accept .gb (which is same forma
     res_dir = os.path.join("resources", wildcards.experiment)
     res_files = [entry.name for entry in os.scandir(res_dir)]
     avail_prot = [f for f in prot_files if f in res_files][0]
-    # ref_path = os.path.join("resources", wildcards.experiment, SAMPLE_INFO[wildcards.barcode]["ref"])
     prot_path = os.path.join(res_dir, avail_prot)
     return prot_path
 

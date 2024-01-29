@@ -8,7 +8,7 @@ rule bwa_ilmn_to_rawasm:
         ilmn_reads=get_clipped_ilmn_reads
     output:
         bam_sort="results/{experiment}/{barcode}/medaka_{assembler}_bwa/idx1_aln_ilm_{experiment}_{barcode}.bam.sort",
-        sam_file=temp("idx1_aln_ilm_{experiment}_{barcode}.sam"),
+        sam_file=temp("idx1_aln_ilm_{experiment}_{barcode}_{assembler}.sam"),
         bam=temp("results/{experiment}/{barcode}/medaka_{assembler}_bwa/idx1_aln_ilm_{experiment}_{barcode}.bam")
     params:
         prefix="idx1_medaka_{assembler}_{experiment}_{barcode}",

@@ -7,13 +7,16 @@ rule bwa_ilmn_to_rawasm:
         raw_asm="results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta",
         ilmn_reads=get_clipped_ilmn_reads
     output:
-        "results/{experiment}/{barcode}/medaka_{assembler}_bwa/idx1_aln_ilm_{experiment}_{barcode}.bam.sort"
+        bam_sort="results/{experiment}/{barcode}/medaka_{assembler}_bwa/idx1_aln_ilm_{experiment}_{barcode}.bam.sort",
+        sam_file=temp("idx1_aln_ilm_{experiment}_{barcode}.sam"),
+        bam=temp("results/{experiment}/{barcode}/medaka_{assembler}_bwa/idx1_aln_ilm_{experiment}_{barcode}.bam")
     params:
-        threads=16,
         prefix="idx1_medaka_{assembler}_{experiment}_{barcode}",
-        sam_file="idx1_aln_ilm_{experiment}_{barcode}.sam",
-        outdir="results/{experiment}/{barcode}/medaka_{assembler}_bwa",
-        bam="results/{experiment}/{barcode}/medaka_{assembler}_bwa/idx1_aln_ilm_{experiment}_{barcode}.bam"
+        outdir="results/{experiment}/{barcode}/medaka_{assembler}_bwa"#,
+        # bam="results/{experiment}/{barcode}/medaka_{assembler}_bwa/idx1_aln_ilm_{experiment}_{barcode}.bam"
+        # sam_file="idx1_aln_ilm_{experiment}_{barcode}.sam",
+    threads:
+        16
     conda:
         "../envs/bwa-mem2.yaml"
     log:
@@ -21,12 +24,12 @@ rule bwa_ilmn_to_rawasm:
     shell:
         "mkdir -p {params.outdir} && "
         "bwa-mem2 index {input.raw_asm} -p {params.prefix} && "
-        "bwa-mem2 mem -t {params.threads} {params.prefix} {input.ilmn_reads} > {params.sam_file} && "
-        "samtools view -hbS {params.sam_file} > {params.bam} && "
-        "samtools sort {params.bam} > {output} && "
-        "samtools index {output} && "
+        "bwa-mem2 mem -t {threads} {params.prefix} {input.ilmn_reads} > {output.sam_file} && "
+        "samtools view -hbS {output.sam_file} > {output.bam} && "
+        "samtools sort {output.bam} > {output.bam_sort} && "
+        "samtools index {output.bam_sort} && "
         "mv {params.prefix}* results/{wildcards.experiment}/{wildcards.barcode}/medaka_{wildcards.assembler} && "
-        "mv {params.sam_file} {params.outdir} 2>&1 > {log}"
+        "mv {output.sam_file} {params.outdir} 2>&1 > {log}"
 
 
 rule pilon_raw_asm:
@@ -53,15 +56,19 @@ rule pilon_iteration_2:
         asm = "results/{experiment}/{barcode}/medaka_{assembler}_pilon1/medaka_{assembler}_pilon1.fasta",
         ilmn_reads=get_clipped_ilmn_reads
     output:
+        sam=temp("results/{experiment}/{barcode}/medaka_{assembler}_pilon2/medaka_{assembler}_ilmn2pilon1.sam"),
+        bam=temp("results/{experiment}/{barcode}/medaka_{assembler}_pilon2/idx2_medaka_{assembler}_ilmn2pilon1.bam"),
         sort="results/{experiment}/{barcode}/medaka_{assembler}_pilon2/idx2_medaka_{assembler}_ilmn2pilon1.bam.sort",
         asm="results/{experiment}/{barcode}/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.fasta"
     params:
-        threads=8,
+        # threads=8,
         outdir="results/{experiment}/{barcode}/medaka_{assembler}_pilon2",
         bwa_prefix="results/{experiment}/{barcode}/medaka_{assembler}_pilon2/idx2_medaka_{assembler}_pilon1",
         pilon_prefix="medaka_{assembler}_pilon2",
-        sam_file="results/{experiment}/{barcode}/medaka_{assembler}_pilon2/medaka_{assembler}_ilmn2pilon1.sam",
-        bam="results/{experiment}/{barcode}/medaka_{assembler}_pilon2/idx2_medaka_{assembler}_ilmn2pilon1.bam"
+        # sam="results/{experiment}/{barcode}/medaka_{assembler}_pilon2/medaka_{assembler}_ilmn2pilon1.sam",
+        # bam="results/{experiment}/{barcode}/medaka_{assembler}_pilon2/idx2_medaka_{assembler}_ilmn2pilon1.bam"
+    threads:
+        8
     conda:
         "../envs/pilon_iteration.yaml"
     log:
@@ -69,9 +76,9 @@ rule pilon_iteration_2:
     shell:
         "mkdir -p {params.outdir} && "
         "bwa-mem2 index {input.asm} -p {params.bwa_prefix} && "
-        "bwa-mem2 mem -t {params.threads} {params.bwa_prefix} {input.ilmn_reads} > {params.sam_file}  && "
-        "samtools view -hbS {params.sam_file} > {params.bam} && "
-        "samtools sort {params.bam} > {output.sort} && "
+        "bwa-mem2 mem -t {params.threads} {params.bwa_prefix} {input.ilmn_reads} > {output.sam}  && "
+        "samtools view -hbS {output.sam} > {output.bam} && "
+        "samtools sort {output.bam} > {output.sort} && "
         "samtools index {output.sort} && "
         "pilon -Xmx16G --genome {input.asm} --bam {output.sort} --output {params.pilon_prefix} --outdir {params.outdir} 2>&1 > {log}"
         

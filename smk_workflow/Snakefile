@@ -68,7 +68,7 @@ rule preprocessing:
     input:
         "data/{experiment}/{barcode}"
     output:
-        "results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq"
+        temp("results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq")
     log:
         "logs/{experiment}/{barcode}/preprocessing.log"
     conda:
@@ -84,7 +84,7 @@ rule opt_read_filter:
         genSize = GENOME_SIZE,
         cov= COVERAGE
     output:
-        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fastq"
+        temp("results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fastq")
     log:
         "logs/{experiment}/{barcode}/filter_optimization.log"
     conda:
@@ -414,6 +414,7 @@ rule set_gtdbtk_classification:
                     print("class_dct", class_dct)
                     class_dct = {GTDB_TRANSL[k]:v for k,v in class_dct.items()}
                     print("class_dct", class_dct)
+
 
 
                     # gtdbtk_call = class_tree.split("_")[-1]

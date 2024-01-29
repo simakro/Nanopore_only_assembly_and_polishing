@@ -377,7 +377,12 @@ rule set_gtdbtk_classification:
                     ddct = dict(zip(keys, data))
                     print(ddct)
                     calls.append(ddct)
-                    out.write(ddct["classification"])
+                    class_tree = ddct["classification"]
+                    spec_class = class_tree.split("_")[-1]
+                    out.write(spec_class)
+                    SAMPLE_INFO[wildcards.barcode]["gtdbtk_class"] = class_tree
+                    SAMPLE_INFO[wildcards.barcode]["gtdbtk_spec"] = spec_class
+                    print("SampleInfo:", SAMPLE_INFO[wildcards.barcode]["gtdbtk_spec"])
                     
 
 

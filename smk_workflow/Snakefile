@@ -400,61 +400,73 @@ rule set_gtdbtk_classification:
     input:
         "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk.bac120.summary.tsv"
     output:
-        "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_classification.txt"
+        "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_classification.txt",
+        "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_update-sinfo/Sample_Info_{barcode}.json"
     run:
         calls = []
         with open(input[0], "r") as gtdbtk_out, open(output[0], "w") as out:
             data = gtdbtk_out.read().split("\n")
             keys = data[0].strip().split("\t")
-            for line in data[1:]:
-                if len(line.strip()) > 0:
-                    data = line.strip().split("\t")
-                    ddct = dict(zip(keys, data))
-                    calls.append(ddct)
-                    class_tree = ddct["classification"]
-                    class_dct = dict(
-                        [call.split("__") for call in class_tree.split(";")]
+            data = [l for l in data if len(l.strip())>0][1:]
+            print(f"INFO: {input} contains {len(data)} call(s)")
+            for line in data:
+                # if len(line.strip()) > 0:
+                data = line.strip().split("\t")
+                ddct = dict(zip(keys, data))
+                calls.append(ddct)
+                class_tree = ddct["classification"]
+                class_dct = dict(
+                    [call.split("__") for call in class_tree.split(";")]
+                    )
+                print("class_dct", class_dct)
+                class_dct = {GTDB_TRANSL[k]:v for k,v in class_dct.items()}
+                print("class_dct", class_dct)
+                class_cats = [
+                    "gtdb_species",
+                    "gtdb_genus",
+                    "gtdb_family",
+                    "gtdb_order",
+                    "gtdb_class",
+                    "gtdb_phylum",
+                    "gtdb_domain",
+                    ]
+                spec_call = False
+                for cat in class_cats:
+                    try:
+                        gtdbtk_call = class_dct[cat]
+                        print(f"INFO: Using {cat} as gtbdtk call category.")
+                        print(f"GTDBTK call: {class_dct[cat]}")
+                        if cat=="gtdb_species":
+                            spec_call = True
+                        break
+                    except:
+                        print(f"WARNING: gtdbtk did not yield a {cat} call.")
+                out.write(gtdbtk_call)
+                for cat in class_dct:
+                    SAMPLE_INFO[wildcards.barcode][cat] = class_dct[cat]
+                SAMPLE_INFO[wildcards.barcode]["gtdb_ref"] = ddct["fastani_reference"]
+                print(f"SAMPLE_INFO: {SAMPLE_INFO}")
+                print(
+                    f"Suggested reference: {SAMPLE_INFO[wildcards.barcode]['gtdb_ref']}"
+                    )
+                # with open(os.path.join("data", EXPERIMENT, f"Sample_Info_{wildcards.barcode}.json"), "w") as sinfo:
+                with open(output[1], "w") as sinfo:
+                    augm_sinfo = json.dumps(
+                        SAMPLE_INFO[wildcards.barcode], indent=4
                         )
-                    print("class_dct", class_dct)
-                    class_dct = {GTDB_TRANSL[k]:v for k,v in class_dct.items()}
-                    print("class_dct", class_dct)
-                    class_cats = [
-                        "gtdb_species",
-                        "gtdb_genus",
-                        "gtdb_family",
-                        "gtdb_order",
-                        "gtdb_class",
-                        "gtdb_phylum",
-                        "gtdb_domain",
-                        ]
-                    spec_call = False
-                    for cat in class_cats:
-                        try:
-                            gtdbtk_call = class_dct[cat]
-                            print(f"INFO: Using {cat} as gtbdtk call category.")
-                            print(f"GTDBTK call: {class_dct[cat]}")
-                            if cat=="gtdb_species":
-                                spec_call = True
-                            break
-                        except:
-                            print(f"WARNING: gtdbtk did not yield a {cat} call.")
-                    out.write(gtdbtk_call)
-                    for cat in class_dct:
-                        SAMPLE_INFO[wildcards.barcode][cat] = class_dct[cat]
-                    SAMPLE_INFO[wildcards.barcode]["gtdb_ref"] = ddct["fastani_reference"]
-                    print(f"SAMPLE_INFO: {SAMPLE_INFO}")
-                    print(f"Suggested reference: {SAMPLE_INFO[wildcards.barcode]['gtdb_ref']}")
+                    sinfo.write(augm_sinfo)
 
 
 rule update_sample_info_gtdbtk_class:
     input:
-        expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_classification.txt", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
+        expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_classification.txt", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
+        expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_update-sinfo/Sample_Info_{barcode}.json", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
     output:
         expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_sinfo_update.flag", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
     run:
-        with open(os.path.join("data", EXPERIMENT, "Sample_Info.json"), "w") as sinfo:
-            augm_sinfo = json.dumps(SAMPLE_INFO, indent=4)
-            sinfo.write(augm_sinfo)
+        # with open(os.path.join("data", EXPERIMENT, "Sample_Info.json"), "w") as sinfo:
+        #     augm_sinfo = json.dumps(SAMPLE_INFO, indent=4)
+        #     sinfo.write(augm_sinfo)
         for out_file in output:
             with open(out_file, "w") as out:
                 out.write("Update complete")
@@ -468,6 +480,7 @@ rule confirm_or_get_reference:
     output:
         "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/confirm_or_get_reference.flag"
     run:
+        print(f"SAMPLE_INFO from confirm_or_get_reference for {wildcards.barcode}: {SAMPLE_INFO}")
         best_ref = SAMPLE_INFO[wildcards.barcode]["gtdb_ref"]
         ref_dir = os.path.join("resources", wildcards.experiment)
         avail_ref = glob.glob(os.path.join(ref_dir, f"*{best_ref}*"))

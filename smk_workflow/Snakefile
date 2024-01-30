@@ -70,8 +70,10 @@ rule all:
         expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_plasflow/medaka_{assembler}_pilon2_plasflow.tsv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_plasclass/plasclass.probs.out", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_classification.txt", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
-        expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/confirm_or_get_reference.flag", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
-        expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_sinfo_update.flag", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
+        # expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/confirm_or_get_reference.flag", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
+        expand("results/{experiment}/medaka_{assembler}_pilon2_gtdbtk_sinfo/confirm_or_get_reference.flag", experiment=EXPERIMENT, assembler=ASSEMBLERS),
+        expand("results/{experiment}/medaka_{assembler}_pilon2_gtdbtk_sinfo/gtdbtk_sinfo_mod.json", experiment=EXPERIMENT, assembler=ASSEMBLERS),
+        # expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_sinfo_update.flag", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
     
 
 rule preprocessing:
@@ -471,7 +473,7 @@ checkpoint update_sample_info_gtdbtk_class:
         expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_update-sinfo/Sample_Info_{barcode}.json", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
     output:
         expand("results/{experiment}/medaka_{assembler}_pilon2_gtdbtk_sinfo/gtdbtk_sinfo_mod.json", experiment=EXPERIMENT, assembler=ASSEMBLERS),
-        expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_sinfo_update.flag", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
+        # expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_sinfo_update.flag", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
     run:
         print("output of update_sample_info_gtdbtk_class", output)
 
@@ -490,30 +492,30 @@ checkpoint update_sample_info_gtdbtk_class:
                 print(f"SAMPLE_INFO for {asm} from update_sample_info_gtdbtk_class", SAMPLE_INFO)
 
             if_spl = in_file.split("/")
-            ofs = index(results)
-            exp, asm =  if_spl[ofs+1], if_spl[ofs+3.split("_")[1]]
+            ofs = if_spl.index("results")
+            exp, asm =  if_spl[ofs+1], if_spl[ofs+3].split("_")[1]
             with open(os.path.join("results", exp, f"medaka_{asm}_pilon2_gtdbtk_sinfo", "gtdbtk_sinfo_mod.json"), "w") as sinfo:
                 sinfo_mod = json.dumps(SAMPLE_INFO, indent=4)
                 sinfo.write(sinfo_mod)
 
-        for out_file in output[1]:
-            with open(out_file, "w") as out:
-                out.write("Update complete")
+        # for out_file in output:
+        #     with open(out_file, "w") as out:
+        #         out.write("Update complete")
         
         # with open(os.path.join("data", EXPERIMENT, "Sample_Info_mod.json"), "w") as sinfo:
         #     sinfo_mod = json.dumps(SAMPLE_INFO, indent=4)
         #     sinfo.write(augm_sinfo)
 
 
-
 checkpoint confirm_or_get_reference:
     input:
         #f"results/{EXPERIMENT}/gtdbtk_sinfo_mod.json",
         "results/{experiment}/medaka_{assembler}_pilon2_gtdbtk_sinfo/gtdbtk_sinfo_mod.json",
-        expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_sinfo_update.flag", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
+        ## expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_sinfo_update.flag", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
         # "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_classification.txt"
     output:
-        expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/confirm_or_get_reference.flag", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
+        "results/{experiment}/medaka_{assembler}_pilon2_gtdbtk_sinfo/confirm_or_get_reference.flag"
+        # expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/confirm_or_get_reference.flag", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
     run:
         # print(f"SAMPLE_INFO from confirm_or_get_reference for {wildcards.barcode}: {SAMPLE_INFO}")
         # best_ref = SAMPLE_INFO[wildcards.barcode]["gtdb_ref"]
@@ -534,29 +536,44 @@ checkpoint confirm_or_get_reference:
         #     print("Some reference file/s is/are missing. Attempting download")
         # out_flag = open(output[0], "w")
         # out_flag.close()
-        with open(os.path.join("results", EXPERIMENT, "gtdbtk_sinfo_mod.json"), "r") as sinfo:
+        with open(
+            os.path.join(
+                "results",
+                wildcards.experiment,
+                f"medaka_{wildcards.assembler}_pilon2_gtdbtk_sinfo",
+                "gtdbtk_sinfo_mod.json"
+                ), 
+            "r"
+            ) as sinfo:
             sinfo_mod = json.load(sinfo)
         print(f"SAMPLE_INFO_MOD from confirm_or_get_reference: {sinfo_mod}")
         for sample in sinfo_mod:
+            messages = []
             best_ref = sinfo_mod[sample]["gtdb_ref"]
             ref_dir = os.path.join("resources", EXPERIMENT)
             avail_ref = glob.glob(os.path.join(ref_dir, f"*{best_ref}*"))
-            print("avail_ref", avail_ref)
+            # print("avail_ref", avail_ref)
             req_ext = ["fna", "fasta", "fa", "faa", "gbk", "gb"]
             if len(avail_ref) > 0:
-                print(f"Signature of best ref for {sample} already present in resources")
+                m1 = f"Signature of best ref for {sample} already present in resources"
+                messages.append(m1)
+                print(m1) 
             corr_ext = [f.split(".")[-1] for f in avail_ref if f.split(".")[-1] in req_ext]
             # corr_ext = [f for f in avail_ref if f.split(".")[-1] in req_ext]
-            print("corr_ext", corr_ext)
+            # print("corr_ext", corr_ext)
             ref_type = {"fna": "asm", "fasta": "asm", "fa": "asm", "faa": "prot", "gbk": "prot", "gb": "prot"}
             ref_set = {ref_type[ext] for ext in corr_ext}
             if len(ref_set) >= 2:
-                print("It appears all required reference files are present.")
+                m2 = "It appears all required reference files are present."
             else:
-                print("Some reference file/s is/are missing. Attempting download")
+                m2 = "Some reference file/s is/are missing. Attempting download"
+            messages.append(m2)
+            print(m2)
             out_flag = open(output[0], "w")
             out_flag.close()
-            with open(f"results/{EXPERIMENT}/{sample}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_sinfo_update.flag")
+            with open(f"results/{EXPERIMENT}/{sample}/medaka_{wildcards.assembler}_pilon2_gtdbtk/confirm_or_get_reference.flag", "w") as flag:
+                for m in messages:
+                    flag.write(f"m\n")
 
 
 

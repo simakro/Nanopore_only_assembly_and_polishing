@@ -62,7 +62,10 @@ rule all:
         expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk.bac120.summary.tsv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_plasflow/medaka_{assembler}_pilon2_plasflow.tsv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_plasclass/plasclass.probs.out", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
-        expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_classification.txt", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
+        expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_classification.txt", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
+        expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/confirm_or_get_reference.flag", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
+        expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_sinfo_update.flag", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
+    
 
 rule preprocessing:
     input:
@@ -209,13 +212,13 @@ rule prokka_expected_ref:
         "prokka --proteins {input.prot_file} {input.asm} --outdir {output.protgbk_dir} --prefix {wildcards.experiment}_{wildcards.barcode}_{wildcards.assembler}_prokka_protgbk_exp --force 2>&1 > {log}"
 
 
-rule get_ref_based_on_gtdbtk_class:
-    input:
-        "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_classification.txt"
-    output:
-        "results/{experiment}/{barcode}/got_ref_for_medaka_{assembler}_pilon2_gtdbtk.flag"
-    run:
-        spec_call = SAMPLE_INFO[""]
+# rule get_ref_based_on_gtdbtk_class:
+#     input:
+#         "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_classification.txt"
+#     output:
+#         "results/{experiment}/{barcode}/got_ref_for_medaka_{assembler}_pilon2_gtdbtk.flag"
+#     run:
+#         spec_call = SAMPLE_INFO[""]
 
 
 rule prokka_gtdbtk_ref:
@@ -438,23 +441,40 @@ rule set_gtdbtk_classification:
                     out.write(gtdbtk_call)
                     for cat in class_dct:
                         SAMPLE_INFO[wildcards.barcode][cat] = class_dct[cat]
-                    SAMPLE_INFO[wildcards.barcode]["gtdbtk_ref"] = ddct["fastani_reference"]
-                    print(f"Suggested reference: {SAMPLE_INFO[wildcards.barcode]['gtdbtk_ref']}")
-                    
+                    SAMPLE_INFO[wildcards.barcode]["gtdb_ref"] = ddct["fastani_reference"]
+                    print(f"SAMPLE_INFO: {SAMPLE_INFO}")
+                    print(f"Suggested reference: {SAMPLE_INFO[wildcards.barcode]['gtdb_ref']}")
+
+
+rule update_sample_info_gtdbtk_class:
+    input:
+        expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_classification.txt", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
+    output:
+        expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_sinfo_update.flag", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
+    run:
+        with open(os.path.join("data", EXPERIMENT, "Sample_Info.json"), "w") as sinfo:
+            augm_sinfo = json.dumps(SAMPLE_INFO, indent=4)
+            sinfo.write(augm_sinfo)
+        for out_file in output:
+            with open(out_file, "w") as out:
+                out.write("Update complete")
+
+
 
 rule confirm_or_get_reference:
     input:
+        "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_sinfo_update.flag",
         "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_classification.txt"
     output:
         "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/confirm_or_get_reference.flag"
     run:
-        best_ref = SAMPLE_INFO[wildcards.barcode]["gtdbtk_ref"]
+        best_ref = SAMPLE_INFO[wildcards.barcode]["gtdb_ref"]
         ref_dir = os.path.join("resources", wildcards.experiment)
         avail_ref = glob.glob(os.path.join(ref_dir, f"*{best_ref}*"))
         print("avail_ref", avail_ref)
         req_ext = ["fna", "fasta", "fa", "faa", "gbk", "gb"]
         if len(avail_ref) > 0:
-            print("Signature of best ref already present in resources")
+            print(f"Signature of best ref for {wildcards.barcode} already present in resources")
         corr_ext = [f.split(".")[-1] for f in avail_ref if f.split(".")[-1] in req_ext]
         # corr_ext = [f for f in avail_ref if f.split(".")[-1] in req_ext]
         print("corr_ext", corr_ext)

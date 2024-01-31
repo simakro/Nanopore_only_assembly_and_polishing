@@ -13,7 +13,7 @@ EXPERIMENT = "SM0026_bacterial_genomes_KP"
 BARCODES = [
     # "barcode01",
     "barcode02",
-    "barcode03",
+    # "barcode03",
     # "barcode04",
     # "barcode05",
     # "barcode06",
@@ -544,10 +544,18 @@ checkpoint confirm_or_get_reference:
                 lst.write(f"{ref}\n")
 
 
+rule download_references:
+    input:
+        "results/{experiment}/medaka_{assembler}_pilon2_gtdbtk_sinfo/download_list.txt"
+    output:
+        "results/{experiment}/downloads/{assembler}/{item}.flag"
+    conda:
+        "envs/datasets.yaml"
+    shell:
+        "datasets download genome accession {item} --include protein,gff3,rna,gbff,gtf,cds,seq-report --filename {item}.zip && "
+        "unzip {item}.zip && "
+        "mv ncbi_dataset/data/{item}/ "
 
-# rule download_references:
-#     input:
-            
 
 rule plasflow:
     input:

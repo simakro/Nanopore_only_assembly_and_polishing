@@ -419,7 +419,6 @@ rule set_gtdbtk_classification:
             data = [l for l in data if len(l.strip())>0][1:]
             print(f"INFO: {input} contains {len(data)} call(s)")
             for line in data:
-                # if len(line.strip()) > 0:
                 data = line.strip().split("\t")
                 ddct = dict(zip(keys, data))
                 calls.append(ddct)
@@ -499,11 +498,9 @@ checkpoint update_sample_info_gtdbtk_class:
 
 checkpoint confirm_or_get_reference:
     input:
-        "results/{experiment}/medaka_{assembler}_pilon2_gtdbtk_sinfo/gtdbtk_sinfo_mod.json",
-        ## expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_sinfo_update.flag", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
+        "results/{experiment}/medaka_{assembler}_pilon2_gtdbtk_sinfo/gtdbtk_sinfo_mod.json"
     output:
         "results/{experiment}/medaka_{assembler}_pilon2_gtdbtk_sinfo/confirm_or_get_reference.flag"
-        # expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/confirm_or_get_reference.flag", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
     run:
         with open(
             os.path.join(
@@ -515,7 +512,7 @@ checkpoint confirm_or_get_reference:
             "r"
             ) as sinfo:
             sinfo_mod = json.load(sinfo)
-        print(f"SAMPLE_INFO_MOD from confirm_or_get_reference: {sinfo_mod}")
+        dwnld = set()
         for sample in sinfo_mod:
             messages = []
             best_ref = sinfo_mod[sample]["gtdb_ref"]
@@ -523,7 +520,7 @@ checkpoint confirm_or_get_reference:
             avail_ref = glob.glob(os.path.join(ref_dir, f"*{best_ref}*"))
             req_ext = ["fna", "fasta", "fa", "faa", "gbk", "gb"]
             if len(avail_ref) > 0:
-                m1 = f"Signature of best ref for {sample} already present in resources"
+                m1 = f"Signature of best ref for {sample} assembled with {wildcards.assembler} already present in resources"
                 messages.append(m1)
                 print(m1) 
             corr_ext = [f.split(".")[-1] for f in avail_ref if f.split(".")[-1] in req_ext]
@@ -532,15 +529,25 @@ checkpoint confirm_or_get_reference:
             if len(ref_set) >= 2:
                 m2 = "It appears all required reference files are present."
             else:
-                m2 = "Some reference file/s is/are missing. Attempting download"
+                m2 = f"Some reference file/s is/are missing. Adding {best_ref} to download set."
+                dwnld.add(best_ref)
             messages.append(m2)
             print(m2)
             out_flag = open(output[0], "w")
             out_flag.close()
-            with open(f"results/{EXPERIMENT}/{sample}/medaka_{wildcards.assembler}_pilon2_gtdbtk/confirm_or_get_reference.flag", "w") as flag:
+            with open(f"results/{EXPERIMENT}/medaka_{wildcards.assembler}_pilon2_gtdbtk_sinfo/confirm_or_get_reference.flag", "a") as flag:
                 for m in messages:
                     flag.write(f"{m}\n")
+            
+        with open(f"results/{EXPERIMENT}/medaka_{wildcards.assembler}_pilon2_gtdbtk_sinfo/download_list.txt", "a") as lst:
+            for ref in dwnld:
+                lst.write(f"{ref}\n")
 
+
+
+# rule download_references:
+#     input:
+            
 
 rule plasflow:
     input:

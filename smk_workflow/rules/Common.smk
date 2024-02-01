@@ -75,3 +75,11 @@ def get_clipped_ilmn_reads(wildcards):
     ilmn_clip_dir = checkpoints.clip_adapters_sm.get(**wildcards).output[0]
     # ilmn_reads = get_ilmn_reads(wildcards)
     return glob.glob(os.path.join(ilmn_clip_dir, "*_clipped.fq"))
+
+
+def get_genome_dwnld_accessions(wildcards):
+    dwnld_dir = checkpoints.confirm_or_get_reference.get(**wildcards).output.dwnl_dir
+    # ilmn_reads = get_ilmn_reads(wildcards)
+    dwnl_fls = glob.glob(os.path.join(dwnld_dir, "*.dwnld"))
+    accessions = [".".join(f.split(".")[:-1]) for f in dwnl_fls]
+    return accessions

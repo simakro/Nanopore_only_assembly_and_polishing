@@ -8,7 +8,7 @@ rule bwa_ilmn_to_rawasm:
         ilmn_reads=get_clipped_ilmn_reads
     output:
         bam_sort="results/{experiment}/{barcode}/medaka_{assembler}_bwa/idx1_aln_ilm_{experiment}_{barcode}.bam.sort",
-        sam_file=temp("idx1_aln_ilm_{experiment}_{barcode}_{assembler}.sam"),
+        sam_file=temp("results/{experiment}/{barcode}/medaka_{assembler}_bwa/idx1_aln_ilm_{experiment}_{barcode}_{assembler}.sam"),
         bam=temp("results/{experiment}/{barcode}/medaka_{assembler}_bwa/idx1_aln_ilm_{experiment}_{barcode}.bam")
     params:
         prefix="idx1_medaka_{assembler}_{experiment}_{barcode}",
@@ -28,8 +28,8 @@ rule bwa_ilmn_to_rawasm:
         "samtools view -hbS {output.sam_file} > {output.bam} && "
         "samtools sort {output.bam} > {output.bam_sort} && "
         "samtools index {output.bam_sort} && "
-        "mv {params.prefix}* results/{wildcards.experiment}/{wildcards.barcode}/medaka_{wildcards.assembler} && "
-        "mv {output.sam_file} {params.outdir} 2>&1 > {log}"
+        "mv {params.prefix}* results/{wildcards.experiment}/{wildcards.barcode}/medaka_{wildcards.assembler}" #" && "
+        # "mv {output.sam_file} {params.outdir} 2>&1 > {log}"
 
 
 rule pilon_raw_asm:
@@ -76,7 +76,7 @@ rule pilon_iteration_2:
     shell:
         "mkdir -p {params.outdir} && "
         "bwa-mem2 index {input.asm} -p {params.bwa_prefix} && "
-        "bwa-mem2 mem -t {params.threads} {params.bwa_prefix} {input.ilmn_reads} > {output.sam}  && "
+        "bwa-mem2 mem -t {threads} {params.bwa_prefix} {input.ilmn_reads} > {output.sam}  && "
         "samtools view -hbS {output.sam} > {output.bam} && "
         "samtools sort {output.bam} > {output.sort} && "
         "samtools index {output.sort} && "

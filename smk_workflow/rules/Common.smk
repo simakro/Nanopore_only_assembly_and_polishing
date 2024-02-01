@@ -5,14 +5,25 @@ def get_ref_path(wildcards):
 
 
 def get_ref_proteins(wildcards): # adapt to also accept .gb (which is same format as gbk) extension and .faa which is a different pure protein format usable for prokka --proteins
-    reference = SAMPLE_INFO[wildcards.barcode]["ref"]
-    comp_ext = [".gbk", ".gb", ".faa"]
-    prot_files = [f'{(".").join(reference.split(".")[:-1])}{ext}' for ext in comp_ext]
-    res_dir = os.path.join("resources", wildcards.experiment)
-    res_files = [entry.name for entry in os.scandir(res_dir)]
-    avail_prot = [f for f in prot_files if f in res_files][0]
-    prot_path = os.path.join(res_dir, avail_prot)
-    return prot_path
+    with open(
+        "results/{wildcards.experiment}/medaka_{wildcards.assembler}_pilon2_gtdbtk_sinfo/gtdbtk_sinfo_mod.json",
+        "r"
+        ) as sinfo_mod_file:
+        Sample_Info_mod = json.loads(sinfo_mod_file.read())
+
+
+    
+    # # try/except
+    # # if/
+    # else:
+    #     reference = SAMPLE_INFO[wildcards.barcode]["ref"]
+    #     comp_ext = [".gbk", ".gb", ".faa"]
+    #     prot_files = [f'{(".").join(reference.split(".")[:-1])}{ext}' for ext in comp_ext]
+    #     res_dir = os.path.join("resources", wildcards.experiment)
+    #     res_files = [entry.name for entry in os.scandir(res_dir)]
+    #     avail_prot = [f for f in prot_files if f in res_files][0]
+    #     prot_path = os.path.join(res_dir, avail_prot)
+    # return prot_path
 
 
 def get_draft_asm(wildcards):

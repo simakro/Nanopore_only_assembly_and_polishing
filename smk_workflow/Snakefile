@@ -67,9 +67,10 @@ rule all:
         # expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon4/medaka_{assembler}_pilon4.fasta", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS, iteration=PILON_ITERATIONS),
         expand("results/{experiment}/{barcode}/ilmn_fastqc_before/fastqc_complete.flag", experiment=EXPERIMENT, barcode=BARCODES),
         # expand("results/{experiment}/{barcode}/ilmn_fastqc_after/fastqc_complete.flag", experiment=EXPERIMENT, barcode=BARCODES)
+        
         ## expand("results/{experiment}/{barcode}/dnadiff/medaka_{assembler}/consensus.report", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
-        expand("results/{experiment}/{barcode}/dnadiff/medaka_{assembler}_pilon2.oriented.report", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
-        # expand("results/{experiment}/{barcode}/dnadiff/medaka_{assembler}_pilon1/medaka_{assembler}_pilon1.report", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
+        ### expand("results/{experiment}/{barcode}/dnadiff/medaka_{assembler}_pilon2.oriented.report", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
+        
         expand("results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.oriented.fasta", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk.bac120.summary.tsv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_plasflow/medaka_{assembler}_pilon2_plasflow.tsv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
@@ -194,6 +195,8 @@ rule dnadiff:
     input:
         # asm="results/{experiment}/{barcode}/{assembly}.fasta",
         asm="results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.oriented.fasta",
+        sinfo_flag="results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk_sinfo/update_sinfo_mod.flag",
+        # gtdbtk_sum="results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk.bac120.summary.tsv",
         reference=get_ref_path
     output:
         "results/{experiment}/{barcode}/dnadiff/medaka_{assembler}_pilon2.oriented.report"
@@ -479,6 +482,7 @@ checkpoint update_sample_info_gtdbtk_class:
         expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_update-sinfo/Sample_Info_{barcode}.json", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
     output:
         expand("results/{experiment}/medaka_{assembler}_pilon2_gtdbtk_sinfo/gtdbtk_sinfo_mod.json", experiment=EXPERIMENT, assembler=ASSEMBLERS),
+        expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk_sinfo/update_sinfo_mod.flag", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
     run:
         print("output of update_sample_info_gtdbtk_class", output)
 
@@ -498,10 +502,13 @@ checkpoint update_sample_info_gtdbtk_class:
 
             if_spl = in_file.split("/")
             ofs = if_spl.index("results")
-            exp, asm =  if_spl[ofs+1], if_spl[ofs+3].split("_")[1]
+            exp, bc, asm =  if_spl[ofs+1], if_spl[ofs+2], if_spl[ofs+3].split("_")[1]
             with open(os.path.join("results", exp, f"medaka_{asm}_pilon2_gtdbtk_sinfo", "gtdbtk_sinfo_mod.json"), "w") as sinfo:
                 sinfo_mod = json.dumps(SAMPLE_INFO, indent=4)
                 sinfo.write(sinfo_mod)
+            flag = f"results/{exp}/{bc}/medaka_{asm}_pilon2_gtdbtk_sinfo/update_sinfo_mod.flag"
+            with open(flag, "w") as sflag:
+                sflag.write(flag)
 
 
 checkpoint confirm_or_get_reference:

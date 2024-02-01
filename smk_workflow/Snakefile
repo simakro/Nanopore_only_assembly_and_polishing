@@ -642,3 +642,5 @@ rule plasclass:
 # Circular plot with GC skew etc.
 # Quality assessment (QUAST or similar)
 # find a way to remove clipped illumina reads (temp() not working due to unknown name)
+# add a rule running a script that automatically checks if PlasFLow and PlasCLass are in pkgs dir and otherwise downloads/clones them from github and removes git from them...difficult and the last potentially dangerous
+# PlasClass is only 2,5Mb that could be fully included; PLasFLow on the other hand is 65Mb; can the latter be left out completely, does it add any value? 

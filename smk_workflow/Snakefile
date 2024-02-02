@@ -23,7 +23,8 @@ BARCODES = [
     ]
 
 with open(os.path.join("data", EXPERIMENT, "Sample_Info.json")) as sinfo:
-    SAMPLE_INFO = json.load(sinfo)
+    SAMPLE_INFO = {k:v for k,v in json.load(sinfo).items() if k in BARCODES}
+    print("SAMPLE_INFO", SAMPLE_INFO)
 
 # if os.path.exists("data", EXPERIMENT, "Sample_Info_mod.json"):
 #     with open(os.path.join("data", EXPERIMENT, "Sample_Info_mod.json")) as mod:
@@ -48,7 +49,7 @@ rule all:
         # # expand("results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         #! expand("results/{experiment}/{barcode}/prokka_medaka_{assembler}_genusdb/{experiment}_{barcode}_{assembler}_prokka_genusdb.tsv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         ## expand("results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk/{experiment}_{barcode}_{assembler}_prokka_protgbk.tsv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
-        expand("results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk_class/{experiment}_{barcode}_{assembler}_prokka_protgbk_class.tsv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
+        #### expand("results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk_class/{experiment}_{barcode}_{assembler}_prokka_protgbk_class.tsv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         # expand("results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk_exp/{experiment}_{barcode}_{assembler}_prokka_protgbk_exp.tsv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         # "results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk_exp/{experiment}_{barcode}_{assembler}_prokka_protgbk_exp.tsv" # expected ref
         # "results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk_class/{experiment}_{barcode}_{assembler}_prokka_protgbk_class.tsv" # gtdbtk determined ref
@@ -80,7 +81,7 @@ rule all:
         expand("results/{experiment}/medaka_{assembler}_pilon2_gtdbtk_sinfo/confirm_or_get_reference.flag", experiment=EXPERIMENT, assembler=ASSEMBLERS),
         expand("results/{experiment}/medaka_{assembler}_pilon2_gtdbtk_sinfo/gtdbtk_sinfo_mod.json", experiment=EXPERIMENT, assembler=ASSEMBLERS),
         # expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_sinfo_update.flag", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
-        expand("results/{experiment}/medaka_{assembler}__dwnlds/download_done.flag", experiment=EXPERIMENT, assembler=ASSEMBLERS)
+        expand("results/{experiment}/medaka_{assembler}_dwnlds/download_done.flag", experiment=EXPERIMENT, assembler=ASSEMBLERS)
 
 
 rule preprocessing:
@@ -243,8 +244,9 @@ rule prokka_gtdbtk_ref:
     input:
         "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_classification.txt",
         # "results/{experiment}/{barcode}/got_ref_for_medaka_{assembler}_pilon2_gtdbtk.flag",
+        "results/{experiment}/medaka_{assembler}_dwnlds/download_done.flag",
         asm="results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.oriented.fasta",
-        # !!!prot_file=get_ref_proteins
+        prot_file=get_ref_proteins
     output:
         protgbk_dir=directory("results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk_class"),
         protg_tsv="results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk_class/{experiment}_{barcode}_{assembler}_prokka_protgbk_class.tsv"
@@ -516,7 +518,8 @@ checkpoint confirm_or_get_reference:
         "results/{experiment}/medaka_{assembler}_pilon2_gtdbtk_sinfo/gtdbtk_sinfo_mod.json"
     output:
         "results/{experiment}/medaka_{assembler}_pilon2_gtdbtk_sinfo/confirm_or_get_reference.flag",
-        dwnl_dir=directory("results/{experiment}/medaka_{assembler}_dwnlds")
+        # dwnl_dir=directory("results/{experiment}/medaka_{assembler}_dwnld_lst")
+        dwnl_dir=directory("results/{experiment}/medaka_{assembler}_pilon2_gtdbtk_dwnld")
     run:
         with open(
             os.path.join(
@@ -528,6 +531,7 @@ checkpoint confirm_or_get_reference:
             "r"
             ) as sinfo:
             sinfo_mod = json.load(sinfo)
+            print(sinfo_mod)
         dwnld = set()
         for sample in sinfo_mod:
             messages = []
@@ -558,18 +562,21 @@ checkpoint confirm_or_get_reference:
         # with open(f"results/{EXPERIMENT}/medaka_{wildcards.assembler}_pilon2_gtdbtk_sinfo/download_list.txt", "a") as lst:
         #     for ref in dwnld:
         #         lst.write(f"{ref}\n")
-        
+        os.makedirs("results/{EXPERIMENT}/medaka_{wildcards.assembler}_pilon2_gtdbtk_dwnld", exist_ok=True)
         for ref in dwnld:
-            with open(f"results/{EXPERIMENT}/medaka_{wildcards.assembler}_dwnlds/ref.dwnld", "r") as lst:
+            with open(f"results/{EXPERIMENT}/medaka_{wildcards.assembler}_pilon2_gtdbtk_dwnld/{ref}.dwnld", "w") as lst:
                 lst.write(ref)
 
 
-rule download_references:
+checkpoint download_references:
     input:
         # "results/{experiment}/medaka_{assembler}_pilon2_gtdbtk_sinfo/download_list.txt",
         accs=get_genome_dwnld_accessions
     output:
-        "results/{experiment}/medaka_{assembler}__dwnlds/download_done.flag"
+        "results/{experiment}/medaka_{assembler}_dwnlds/download_done.flag",
+        # dwnl_dir=directory("results/{experiment}/medaka_{assembler}_pilon2_gtdbtk_dwnld")
+    params:
+        dwnl_dir=directory("results/{experiment}/medaka_{assembler}_pilon2_gtdbtk_dwnld")
     conda:
         "envs/datasets.yaml"
     shell:

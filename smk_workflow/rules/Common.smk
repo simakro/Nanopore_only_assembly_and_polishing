@@ -5,11 +5,11 @@ def get_ref_path(wildcards):
 
 
 def get_ref_proteins(wildcards): # adapt to also accept .gb (which is same format as gbk) extension and .faa which is a different pure protein format usable for prokka --proteins
-    with open(
-        "results/{wildcards.experiment}/medaka_{wildcards.assembler}_pilon2_gtdbtk_sinfo/gtdbtk_sinfo_mod.json",
-        "r"
-        ) as sinfo_mod_file:
-        Sample_Info_mod = json.loads(sinfo_mod_file.read())
+    sinfo_mod = "results/{wildcards.experiment}/medaka_{wildcards.assembler}_pilon2_gtdbtk_sinfo/gtdbtk_sinfo_mod.json"
+    if os.path.exists(sinfo_mod):
+        with open(sinfo_mod, "r") as si_mod:
+            Sample_Info_mod = json.loads(si_mod.read())
+        
 
 
     

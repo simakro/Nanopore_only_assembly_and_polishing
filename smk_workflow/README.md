@@ -1,41 +1,55 @@
-# NCBI Datasets
+# Nanopore_only_assembly_and_polishing
+Genome assembly and polishing from (long read) Nanopore-only data; originally for HCMV (should be good for bacteria as well)
 
-https://www.ncbi.nlm.nih.gov/datasets
+# Installation
 
-This zip archive contains an NCBI Datasets Data Package.
+## GTDBTK
+For classification with GTDBTK first a database has to be downloaded.
+For this:
+    1. create a new conda environment on the same machine you intend to run the workflow:
+        conda create -n gtdbtk
+    2. change into this env
+        conda activate gtdbtk
+    3. install the tool:
+        conda install -c bioconda gtdbtk=2.3.2
 
-NCBI Datasets Data Packages can include sequence, annotation and other data files, and metadata in one or more data report files.
-Data report files are in JSON Lines format.
+When installation completes the following message can be seen:
+"""
+    GTDB-Tk v2.3.2 requires ~78G of external data which needs to be downloaded
+    and extracted. This can be done automatically, or manually.
 
----
-## FAQs
-### Where is the data I requested?
+    Automatic:
 
-Your data is in the subdirectory `ncbi_dataset/data/` contained within this zip archive.
+        1. Run the command "download-db.sh" to automatically download and extract to:
+            /home/simon/mambaforge/envs/gtdbtk/share/gtdbtk-2.3.2/db/
 
-### I still can't find my data, can you help?
+    Manual:
 
-We have identified a bug affecting Mac Safari users. When downloading data from the NCBI Datasets web interface, you may see only this README file after the download has completed (while other files appear to be missing).
-As a workaround to prevent this issue from recurring, we recommend disabling automatic zip archive extraction in Safari until Apple releases a bug fix.
-For more information, visit:
-https://www.ncbi.nlm.nih.gov/datasets/docs/reference-docs/mac-zip-bug/
+        1. Manually download the latest reference data:
+            wget https://data.gtdb.ecogenomic.org/releases/release214/214.0/auxillary_files/gtdbtk_r214_data.tar.gz
 
-### How do I work with JSON Lines data reports?
+        2. Extract the archive to a target directory:
+            tar -xvzf gtdbtk_r214_data.tar.gz -C "/path/to/target/db" --strip 1 > /dev/null
+            rm gtdbtk_r214_data.tar.gz
 
-Visit our JSON Lines data report documentation page:
-https://www.ncbi.nlm.nih.gov/datasets/docs/v2/tutorials/working-with-jsonl-data-reports/
+        3. Set the GTDBTK_DATA_PATH environment variable by running:
+            conda env config vars set GTDBTK_DATA_PATH="/path/to/target/db
+"""
 
-### What is NCBI Datasets?
+Use the automatic versionwith the shell script.
+Within the snakefile in rule classify_gtdbtk, in the shell directive, the first
+line has to be edited to fit to the path given in (1.) e.g.:
 
-NCBI Datasets is a new resource that lets you easily gather data from across NCBI databases. Find and download gene, transcript, protein and genome sequences, annotation and metadata.
+"mamba env config vars set GTDBTK_DATA_PATH=/homes/simon/.conda/envs/gtdbtk/share/gtdbtk-2.3.2/db && "
+ would be wrong here and had to be changed to 
+"mamba env config vars set GTDBTK_DATA_PATH=/home/simon/mambaforge/envs/gtdbtk/share/gtdbtk-2.3.2/db && "
 
-### Where can I find NCBI Datasets documentation?
-
-Visit the NCBI Datasets documentaion pages:
-https://www.ncbi.nlm.nih.gov/datasets/docs/
-
----
-
-National Center for Biotechnology Information
-National Library of Medicine
-info@ncbi.nlm.nih.gov
+## PlasClass & PlasFlow
+Both packages can not be installed via conda without trouble.
+Therefore I decided to place them as packages into the pkgs folder.
+THe PlasClass package is small enough so I could include it in my github repository.
+However, PlasFlow is so big (65-85Mb) that I would not want to include it.
+It can be downloaded by cloning the PlasFlow repository into the pkgs folder.
+To avoid stacking repo within repo, the .git folder within PlasFlow package should be removed.
+!!!It is extremely important to be careful to only delete the .git in PlasFLow and not the main workflow!!!
+Thus change dir into PlasFLow and run rm .git only there.

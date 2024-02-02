@@ -586,8 +586,8 @@ checkpoint download_references:
         " mkdir -p resources/{wildcards.experiment}/$ref_acc;"
         " datasets download genome accession $ref_acc --include genome,protein,gff3,rna,gbff,gtf,cds,seq-report --filename resources/{wildcards.experiment}/$ref_acc.zip;"
         " unzip -n resources/{wildcards.experiment}/$ref_acc.zip -d resources/{wildcards.experiment}/$ref_acc;"
-        # The embedded for loop nested in the outer loop was adopted from https://www.ncbi.nlm.nih.gov/datasets/docs/v2/tutorials/rename-files/
-        # " for file in resources/{wildcards.experiment}/$ref_acc/ncbi_dataset/data/*/protein.faa;"
+        # The inner one of the nested for loops was adopted with changes from
+        # https://www.ncbi.nlm.nih.gov/datasets/docs/v2/tutorials/rename-files/
         " for file in resources/{wildcards.experiment}/$ref_acc/ncbi_dataset/data/*/*;"
             "do"
             " directory_name=$(dirname $file);"

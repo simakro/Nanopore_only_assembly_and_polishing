@@ -88,9 +88,14 @@ def get_clipped_ilmn_reads(wildcards):
     return glob.glob(os.path.join(ilmn_clip_dir, "*_clipped.fq"))
 
 
-def get_genome_dwnld_accessions(wildcards):
+def get_genome_dwnld_files(wildcards):
     dwnld_dir = checkpoints.confirm_or_get_reference.get(**wildcards).output.dwnl_dir
+    print("dwnld_dir", dwnld_dir)
     # ilmn_reads = get_ilmn_reads(wildcards)
-    dwnl_fls = glob.glob(os.path.join(dwnld_dir, "*.dwnld"))
-    accessions = [".".join(f.split(".")[:-1]) for f in dwnl_fls]
-    return accessions
+    dwnl_paths = glob.glob(os.path.join(dwnld_dir, "*.dwnld"))
+    print("dwnl_paths", dwnl_paths)
+    # dwnl_fls = [os.path.split(f)[-1] for f in dwnl_paths]
+    # print("dwnl_fls", dwnl_fls)
+    # accessions = [".".join(f.split(".")[:-1]) for f in dwnl_fls]
+    # print("accessions", accessions)
+    return dwnl_paths

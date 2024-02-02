@@ -74,7 +74,7 @@ rule all:
         
         expand("results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.oriented.fasta", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk.bac120.summary.tsv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
-        # expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_plasflow/medaka_{assembler}_pilon2_plasflow.tsv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
+        expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_plasflow/medaka_{assembler}_pilon2_plasflow.tsv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_plasclass/plasclass.probs.out", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_classification.txt", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         # expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/confirm_or_get_reference.flag", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
@@ -562,7 +562,7 @@ checkpoint confirm_or_get_reference:
         # with open(f"results/{EXPERIMENT}/medaka_{wildcards.assembler}_pilon2_gtdbtk_sinfo/download_list.txt", "a") as lst:
         #     for ref in dwnld:
         #         lst.write(f"{ref}\n")
-        os.makedirs("results/{EXPERIMENT}/medaka_{wildcards.assembler}_pilon2_gtdbtk_dwnld", exist_ok=True)
+        os.makedirs(f"results/{EXPERIMENT}/medaka_{wildcards.assembler}_pilon2_gtdbtk_dwnld", exist_ok=True)
         for ref in dwnld:
             with open(f"results/{EXPERIMENT}/medaka_{wildcards.assembler}_pilon2_gtdbtk_dwnld/{ref}.dwnld", "w") as lst:
                 lst.write(ref)
@@ -571,18 +571,19 @@ checkpoint confirm_or_get_reference:
 checkpoint download_references:
     input:
         # "results/{experiment}/medaka_{assembler}_pilon2_gtdbtk_sinfo/download_list.txt",
-        accs=get_genome_dwnld_accessions
+        accs=get_genome_dwnld_files
     output:
         "results/{experiment}/medaka_{assembler}_dwnlds/download_done.flag",
         # dwnl_dir=directory("results/{experiment}/medaka_{assembler}_pilon2_gtdbtk_dwnld")
-    params:
-        dwnl_dir=directory("results/{experiment}/medaka_{assembler}_pilon2_gtdbtk_dwnld")
+    # params:
+    #     dwnl_dir=directory("results/{experiment}/medaka_{assembler}_pilon2_gtdbtk_dwnld")
     conda:
         "envs/datasets.yaml"
     shell:
         "for acc in {input.accs};"
         "do"
-        " datasets download genome accession $acc --include protein,gff3,rna,gbff,gtf,cds,seq-report --filename $acc.zip;"
+        " grep _ $acc | xargs" 
+        " datasets download genome accession --include protein,gff3,rna,gbff,gtf,cds,seq-report --filename $acc.zip;"
         " unzip $acc.zip; "
         " mv ncbi_dataset $acc_dataset;"
         "done && "

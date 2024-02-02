@@ -582,12 +582,21 @@ checkpoint download_references:
     shell:
         "for acc in {input.accs};"
         "do"
-        " grep _ $acc | xargs" 
-        " datasets download genome accession --include protein,gff3,rna,gbff,gtf,cds,seq-report --filename $acc.zip;"
-        " unzip $acc.zip; "
+        " ref_acc=$(grep _ $acc);"
+        " mkdir -p resources/{wildcards.experiment}/$ref_acc;"
+        " datasets download genome accession $ref_acc --include protein,gff3,rna,gbff,gtf,cds,seq-report --filename resources/{wildcards.experiment}/$ref_acc.zip;"
+        " unzip -n resources/{wildcards.experiment}/$ref_acc.zip -d resources/{wildcards.experiment}/$ref_acc; "
         " mv ncbi_dataset $acc_dataset;"
         "done && "
         "touch results/{wildcards.experiment}/medaka_{wildcards.assembler}_dwnlds/download_done.flag"
+        # "for acc in {input.accs};"
+        # "do"
+        # " grep _ $acc | xargs" 
+        # " datasets download genome accession --include protein,gff3,rna,gbff,gtf,cds,seq-report --filename $acc.zip;"
+        # " unzip $acc.zip; "
+        # " mv ncbi_dataset $acc_dataset;"
+        # "done && "
+        # "touch results/{wildcards.experiment}/medaka_{wildcards.assembler}_dwnlds/download_done.flag"
 
 
 rule plasflow:

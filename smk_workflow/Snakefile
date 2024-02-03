@@ -49,7 +49,7 @@ rule all:
         # # expand("results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         #! expand("results/{experiment}/{barcode}/prokka_medaka_{assembler}_genusdb/{experiment}_{barcode}_{assembler}_prokka_genusdb.tsv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         ## expand("results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk/{experiment}_{barcode}_{assembler}_prokka_protgbk.tsv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
-        #### expand("results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk_class/{experiment}_{barcode}_{assembler}_prokka_protgbk_class.tsv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
+        expand("results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk_class/{experiment}_{barcode}_{assembler}_prokka_protgbk_class.tsv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         # expand("results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk_exp/{experiment}_{barcode}_{assembler}_prokka_protgbk_exp.tsv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         # "results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk_exp/{experiment}_{barcode}_{assembler}_prokka_protgbk_exp.tsv" # expected ref
         # "results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk_class/{experiment}_{barcode}_{assembler}_prokka_protgbk_class.tsv" # gtdbtk determined ref
@@ -60,7 +60,7 @@ rule all:
         # expand("results/{experiment}/busco_graph_{assembler}/busco_figure.png", experiment=EXPERIMENT, assembler=ASSEMBLERS)
         # # expand("results/{experiment}/{barcode}/filt_params.json", experiment=EXPERIMENT, barcode=BARCODES)
         # f"results/{REFERENCE}/run_alicyclobacillus_odb10/short_summary.json",
-        expand("results/{experiment}/busco_graph/busco_figure.png", experiment=EXPERIMENT),
+        expand("results/{experiment}/busco_graph/{assembler}/busco_figure.png", experiment=EXPERIMENT, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/medaka_{assembler}_bwa/idx1_aln_ilm_{experiment}_{barcode}.bam.sort", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon1/medaka_{assembler}_pilon1.complete.flag", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.fasta", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
@@ -81,7 +81,8 @@ rule all:
         expand("results/{experiment}/medaka_{assembler}_pilon2_gtdbtk_sinfo/confirm_or_get_reference.flag", experiment=EXPERIMENT, assembler=ASSEMBLERS),
         expand("results/{experiment}/medaka_{assembler}_pilon2_gtdbtk_sinfo/gtdbtk_sinfo_mod.json", experiment=EXPERIMENT, assembler=ASSEMBLERS),
         # expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_sinfo_update.flag", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
-        expand("results/{experiment}/medaka_{assembler}_dwnlds/download_done.flag", experiment=EXPERIMENT, assembler=ASSEMBLERS)
+        expand("results/{experiment}/medaka_{assembler}_dwnlds/download_done.flag", experiment=EXPERIMENT, assembler=ASSEMBLERS),
+        expand("results/{experiment}/{assembler}_busco_ref/ref_busco_completion.flag", experiment=EXPERIMENT, assembler=ASSEMBLERS)
 
 
 rule preprocessing:
@@ -250,7 +251,7 @@ rule prokka_gtdbtk_ref:
     output:
         protgbk_dir=directory("results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk_class"),
         protg_tsv="results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk_class/{experiment}_{barcode}_{assembler}_prokka_protgbk_class.tsv"
-    params:
+    # params:
         # !!!genus=get_prokka_genus,
         # species=get_prokka_species
     log:
@@ -282,38 +283,87 @@ rule busco_assembly:
         "cp {output.outfile} {params.summary_dir}" 
 
 
+# rule busco_reference:
+#     input:
+#         # expand("results/{experiment}/{barcode}/busco_medaka_{assembler}/run_{genus}_odb10/short_summary.txt", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS, genus=BUSCO_GENUS),
+#         # ef_genome = get_ref_path,
+#         # exp_folder = "results/{experiment}/{ref_name}",
+#         # ref_genome = "resources/{experiment}/{ref_name}.fna",
+#         references=get_ref_path,
+#         expand("results/{experiment}/medaka_{assembler}_dwnlds/download_done.flag", experiment=EXPERIMENT, assembler=ASSEMBLERS)
+#     params:
+#         genus=BUSCO_GENUS,
+#         # tmp_out="results/{experiment}/{ref_name}/run_bacteria_odb10/short_summary.txt",
+#         tmp_out="results/{experiment}/{assembler}_busco_ref/run_bacteria_odb10/short_summary.txt",
+#         summary_dir=get_busco_graph_outdir,
+#         outdir="results/{experiment}/{assembler}_busco_ref"
+#         # ref_name=REFERENCE
+#     output:
+#         # outdir=directory("results/{experiment}/{ref_name}"),
+#         outf_root="results/{experiment}/{ref_name}/run_bacteria_odb10/short_summary.specific.{ref_name}.txt"
+#     conda:
+#         "envs/busco.yaml"
+#     log:
+#         "logs/{experiment}/{ref_name}/{ref_name}_busco_reference.log"
+#     shell:
+#         "for ref in references;"
+#         "do"
+#         " busco -i $ref -l {params.genus} -o {params.outdir}_$ref -m genome -f;"
+#         " mv {params.tmp_out} "results/{experiment}/{ref_name}/run_bacteria_odb10/short_summary.specific.{ref_name}.txt";"
+#         "cp {output.outfile} {params.summary_dir} 2>&1 > {log}"
+#         # "busco -i {input.ref_genome} -l {params.genus} -o {params.outdir} -m genome -f && "
+#         # "mv {params.tmp_out} {output.outfile} && "
+#         # "cp {output.outfile} {params.summary_dir} 2>&1 > {log}"
+
+
 rule busco_reference:
     input:
         # expand("results/{experiment}/{barcode}/busco_medaka_{assembler}/run_{genus}_odb10/short_summary.txt", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS, genus=BUSCO_GENUS),
         # ef_genome = get_ref_path,
         # exp_folder = "results/{experiment}/{ref_name}",
-        ref_genome = "resources/{experiment}/{ref_name}.fna" # .{fa_ext}
+        # ref_genome = "resources/{experiment}/{ref_name}.fna",
+        expand("results/{experiment}/medaka_{assembler}_dwnlds/download_done.flag", experiment=EXPERIMENT, assembler=ASSEMBLERS),
+        references=get_ref_path,
     params:
         genus=BUSCO_GENUS,
-        tmp_out="results/{experiment}/{ref_name}/run_bacteria_odb10/short_summary.txt",
+        # tmp_out="results/{experiment}/{ref_name}/run_bacteria_odb10/short_summary.txt",
+        # tmp_out="results/{experiment}/{assembler}_busco_ref/run_bacteria_odb10/short_summary.txt",
         summary_dir=get_busco_graph_outdir,
-        outdir=directory("results/{experiment}/{ref_name}")
+        outdir="results/{experiment}/{assembler}_busco_ref"
         # ref_name=REFERENCE
     output:
         # outdir=directory("results/{experiment}/{ref_name}"),
-        outfile="results/{experiment}/{ref_name}/run_bacteria_odb10/short_summary.specific.{ref_name}.txt"
+        # outf_root="results/{experiment}/{ref_name}/run_bacteria_odb10/short_summary.specific.{ref_name}.txt"
+        "results/{experiment}/{assembler}_busco_ref/ref_busco_completion.flag"
     conda:
         "envs/busco.yaml"
     log:
-        "logs/{experiment}/{ref_name}/{ref_name}_busco_reference.log"
+        "logs/{experiment}/{assembler}_busco_ref/{assembler}_busco_reference.log"
     shell:
-        "busco -i {input.ref_genome} -l {params.genus} -o {params.outdir} -m genome -f && "
-        "mv {params.tmp_out} {output.outfile} && "
-        "cp {output.outfile} {params.summary_dir} 2>&1 > {log}"
+        "for ref_path in {input.references};"
+        "do"
+        " ref_name=$(basename $ref_path);"
+        " IFS='.' read -ra SPLIT <<< $ref_name;"
+        " ref_name=${{SPLIT[0]}};"
+        # " echo BUSCO_$ref_path;"
+        " busco -i $ref_path -l {params.genus} -o {params.outdir}_$ref_name -m genome -f;"
+        " mv {params.outdir}_$ref_name/run_bacteria_odb10/short_summary.txt {params.outdir}_$ref_name/run_bacteria_odb10/short_summary.specific.$ref_name.txt;"
+        " cp {params.outdir}_$ref_name/run_bacteria_odb10/short_summary.specific.$ref_name.txt {params.summary_dir}; "
+        "done; "
+        "touch results/{wildcards.experiment}/{wildcards.assembler}_busco_ref/ref_busco_completion.flag 2>&1 > {log}"
+        # "busco -i {input.ref_genome} -l {params.genus} -o {params.outdir} -m genome -f && "
+        # "mv {params.tmp_out} {output.outfile} && "
+        # "cp {output.outfile} {params.summary_dir} 2>&1 > {log}"
 
 
 rule busco_generate_plot:
     input:
+        "results/{experiment}/{assembler}_busco_ref/ref_busco_completion.flag",
         expand("results/{experiment}/{barcode}/busco_medaka_{assembler}_pilon2/run_{genus}_odb10/short_summary.specific.{barcode}.txt", experiment=EXPERIMENT, assembler=ASSEMBLERS, genus=BUSCO_GENUS, barcode=BARCODES),
-        expand("results/{experiment}/{reference}/run_{genus}_odb10/short_summary.specific.{reference}.txt", experiment=EXPERIMENT, reference=REFERENCES, genus=BUSCO_GENUS)
+        # expand("results/{experiment}/{reference}/run_{genus}_odb10/short_summary.specific.{reference}.txt", experiment=EXPERIMENT, reference=REFERENCES, genus=BUSCO_GENUS)
     output:
         # outdir=directory("results/{experiment}/busco_graph_{assembler}"),
-        "results/{experiment}/busco_graph/busco_figure.png",
+        "results/{experiment}/busco_graph/{assembler}/busco_figure.png",
         # outdir = get_busco_graph_outdir,
     params:
         outdir = get_busco_graph_outdir
@@ -347,11 +397,8 @@ checkpoint clip_adapters_sm:
         "results/{experiment}/{barcode}/ilmn_fastqc_before/fastqc_complete.flag", # this is not required as input for fastqc, but supplies the necessary wildcards and ensures 
         ilmn_reads=get_ilmn_reads
     output:
-        # "results/{experiment}/{barcode}/ilmn_clip_sm/",
-        # "results/{experiment}/{barcode}/ilmn_fastqc_after/fastqc_complete.flag",
         directory("results/{experiment}/{barcode}/ilmn_clip_sm")
     params:
-        # outdir="results/{experiment}/{barcode}/ilmn_clip_sm",
         adapters="resources/adapters_all_trimmomatic_condensed.fasta"
     conda:
         "envs/fastqc.yaml"
@@ -361,7 +408,6 @@ checkpoint clip_adapters_sm:
         "mkdir -m 777 {output} -p && "
         "python3 scripts/identify_and_clip_ilmn_adapters_sm.py -cs 10 -a {params.adapters} -r {input.ilmn_reads} -o {output} 2>&1 >> {log} && "
         "ls {output} | grep _clipped.fq | xargs fastqc -o {output} 2>&1 >> {log}"
-        # "touch {output}"
 
 
 rule circlator_fixstart:
@@ -470,7 +516,6 @@ rule set_gtdbtk_classification:
                 print(
                     f"Suggested reference: {SAMPLE_INFO[wildcards.barcode]['gtdb_ref']}"
                     )
-                # with open(os.path.join("data", EXPERIMENT, f"Sample_Info_{wildcards.barcode}.json"), "w") as sinfo:
                 with open(output[1], "w") as sinfo:
                     augm_sinfo = json.dumps(
                         {wildcards.barcode: SAMPLE_INFO[wildcards.barcode]},
@@ -518,7 +563,6 @@ checkpoint confirm_or_get_reference:
         "results/{experiment}/medaka_{assembler}_pilon2_gtdbtk_sinfo/gtdbtk_sinfo_mod.json"
     output:
         "results/{experiment}/medaka_{assembler}_pilon2_gtdbtk_sinfo/confirm_or_get_reference.flag",
-        # dwnl_dir=directory("results/{experiment}/medaka_{assembler}_dwnld_lst")
         dwnl_dir=directory("results/{experiment}/medaka_{assembler}_pilon2_gtdbtk_dwnld")
     run:
         with open(
@@ -558,10 +602,7 @@ checkpoint confirm_or_get_reference:
             with open(f"results/{EXPERIMENT}/medaka_{wildcards.assembler}_pilon2_gtdbtk_sinfo/confirm_or_get_reference.flag", "a") as flag:
                 for m in messages:
                     flag.write(f"{m}\n")
-            
-        # with open(f"results/{EXPERIMENT}/medaka_{wildcards.assembler}_pilon2_gtdbtk_sinfo/download_list.txt", "a") as lst:
-        #     for ref in dwnld:
-        #         lst.write(f"{ref}\n")
+
         os.makedirs(f"results/{EXPERIMENT}/medaka_{wildcards.assembler}_pilon2_gtdbtk_dwnld", exist_ok=True)
         for ref in dwnld:
             with open(f"results/{EXPERIMENT}/medaka_{wildcards.assembler}_pilon2_gtdbtk_dwnld/{ref}.dwnld", "w") as lst:
@@ -570,13 +611,9 @@ checkpoint confirm_or_get_reference:
 
 checkpoint download_references:
     input:
-        # "results/{experiment}/medaka_{assembler}_pilon2_gtdbtk_sinfo/download_list.txt",
         accs=get_genome_dwnld_files
     output:
         "results/{experiment}/medaka_{assembler}_dwnlds/download_done.flag",
-        # dwnl_dir=directory("results/{experiment}/medaka_{assembler}_pilon2_gtdbtk_dwnld")
-    # params:
-    #     dwnl_dir=directory("results/{experiment}/medaka_{assembler}_pilon2_gtdbtk_dwnld")
     conda:
         "envs/datasets.yaml"
     shell:
@@ -584,7 +621,8 @@ checkpoint download_references:
         "do"
         " ref_acc=$(grep _ $acc);"
         " mkdir -p resources/{wildcards.experiment}/$ref_acc;"
-        " datasets download genome accession $ref_acc --include genome,protein,gff3,rna,gbff,gtf,cds,seq-report --filename resources/{wildcards.experiment}/$ref_acc.zip;"
+        # do not include cds download, because the cds file end in fna, confounding detection of assemblies
+        " datasets download genome accession $ref_acc --include genome,protein,gff3,rna,gbff,gtf,seq-report --filename resources/{wildcards.experiment}/$ref_acc.zip;"
         " unzip -n resources/{wildcards.experiment}/$ref_acc.zip -d resources/{wildcards.experiment}/$ref_acc;"
         # The inner one of the nested for loops was adopted with changes from
         # https://www.ncbi.nlm.nih.gov/datasets/docs/v2/tutorials/rename-files/
@@ -597,14 +635,6 @@ checkpoint download_references:
         " mv -n resources/{wildcards.experiment}/$ref_acc/ncbi_dataset/data/$ref_acc/*  resources/{wildcards.experiment};"
         "done && "
         "touch results/{wildcards.experiment}/medaka_{wildcards.assembler}_dwnlds/download_done.flag"
-        # "for acc in {input.accs};"
-        # "do"
-        # " grep _ $acc | xargs" 
-        # " datasets download genome accession --include protein,gff3,rna,gbff,gtf,cds,seq-report --filename $acc.zip;"
-        # " unzip $acc.zip; "
-        # " mv ncbi_dataset $acc_dataset;"
-        # "done && "
-        # "touch results/{wildcards.experiment}/medaka_{wildcards.assembler}_dwnlds/download_done.flag"
 
 
 rule plasflow:

@@ -1,29 +1,51 @@
 
 def get_ref_path(wildcards):
-    ref_name = SAMPLE_INFO[wildcards.barcode]["ref"]
-    return os.path.join("resources", wildcards.experiment, ref_name)
+    # ref_name = SAMPLE_INFO[wildcards.barcode]["ref"]
+    # return os.path.join("resources", wildcards.experiment, ref_name)
+    ref_path=f"resources/{wildcards.experiment}"
+    references = []
+    fasta_exts = ["fa", "fna", "fasta"]
+    for ext in fasta_exts:
+        ext_refs=glob.glob(os.path.join(ref_path, f"*.{ext}"))
+        # if len(ext_refs) > 0:
+        references.extend(ext_refs)
+    print("references", references)
+    return references
 
 
-def get_ref_proteins(wildcards): # adapt to also accept .gb (which is same format as gbk) extension and .faa which is a different pure protein format usable for prokka --proteins
-    sinfo_mod = "results/{wildcards.experiment}/medaka_{wildcards.assembler}_pilon2_gtdbtk_sinfo/gtdbtk_sinfo_mod.json"
+def get_fallback_ref(wildcards):
+    reference = SAMPLE_INFO[wildcards.barcode]["ref"]
+    comp_ext = [".gbk", ".gb", ".faa", ".gbff"]
+    prot_files = [f'{(".").join(reference.split(".")[:-1])}{ext}' for ext in comp_ext]
+    res_dir = os.path.join("resources", wildcards.experiment)
+    res_files = [entry.name for entry in os.scandir(res_dir)]
+    try:
+        avail_prot = [f for f in prot_files if f in res_files][0]
+        prot_path = os.path.join(res_dir, avail_prot)
+    except:
+        prot_path = f"results/{wildcards.experiment}/medaka_{wildcards.assembler}_dwnlds/download_done.flag"
+    return prot_path
+
+
+def get_ref_proteins(wildcards):  
+    sinfo_mod = f"results/{wildcards.experiment}/medaka_{wildcards.assembler}_pilon2_gtdbtk_sinfo/gtdbtk_sinfo_mod.json"
+    print("sinfo_mod", sinfo_mod)
     if os.path.exists(sinfo_mod):
+        print("Updated sample_info in json format exists")
         with open(sinfo_mod, "r") as si_mod:
             Sample_Info_mod = json.loads(si_mod.read())
-        
-
-
-    
-    # # try/except
-    # # if/
-    # else:
-    #     reference = SAMPLE_INFO[wildcards.barcode]["ref"]
-    #     comp_ext = [".gbk", ".gb", ".faa"]
-    #     prot_files = [f'{(".").join(reference.split(".")[:-1])}{ext}' for ext in comp_ext]
-    #     res_dir = os.path.join("resources", wildcards.experiment)
-    #     res_files = [entry.name for entry in os.scandir(res_dir)]
-    #     avail_prot = [f for f in prot_files if f in res_files][0]
-    #     prot_path = os.path.join(res_dir, avail_prot)
-    # return prot_path
+        gtdb_ref = Sample_Info_mod[wildcards.barcode]["gtdb_ref"]
+        gbfl=glob.glob((os.path.join("resources", wildcards.experiment, f"{gtdb_ref}_genomic.gbff")))
+        if len(gbfl)>0:
+            print("GBFF file for reference found in resources")
+            prot_file = gbfl[0]
+        else:
+            print("No GBFF file for reference found. Using fallback.")
+            prot_file = get_fallback_ref(wildcards)
+    else:
+        print("Updated sample_info-json does not exist. Using fallback.")
+        prot_file = get_fallback_ref(wildcards)
+    return prot_file
 
 
 def get_draft_asm(wildcards):
@@ -65,9 +87,11 @@ def get_qual_filt_param(wildcards):
 def get_busco_graph_outdir(wildcards):
     # return os.path.split(wildcards.input)[0]
     # outdir = f"results/{wildcards.experiment}/busco_graph_{wildcards.assembler}"
-    outdir = f"results/{wildcards.experiment}/busco_graph"
+    outdir = f"results/{wildcards.experiment}/busco_graph/{wildcards.assembler}"
     if not os.path.exists(f"results/{wildcards.experiment}"):
        os.mkdir(f"results/{wildcards.experiment}")
+    if not os.path.exists(f"results/{wildcards.experiment}/busco_graph"):
+       os.mkdir(f"results/{wildcards.experiment}/busco_graph")
     if not os.path.exists(outdir):
        os.mkdir(outdir)
     print(outdir)

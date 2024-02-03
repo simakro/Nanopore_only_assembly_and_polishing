@@ -82,7 +82,8 @@ rule all:
         expand("results/{experiment}/medaka_{assembler}_pilon2_gtdbtk_sinfo/gtdbtk_sinfo_mod.json", experiment=EXPERIMENT, assembler=ASSEMBLERS),
         # expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_sinfo_update.flag", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
         expand("results/{experiment}/medaka_{assembler}_dwnlds/download_done.flag", experiment=EXPERIMENT, assembler=ASSEMBLERS),
-        expand("results/{experiment}/{assembler}_busco_ref/ref_busco_completion.flag", experiment=EXPERIMENT, assembler=ASSEMBLERS)
+        expand("results/{experiment}/{assembler}_busco_ref/ref_busco_completion.flag", experiment=EXPERIMENT, assembler=ASSEMBLERS),
+        expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_circos/{experiment}_{barcode}_circos.svg", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
 
 
 rule preprocessing:
@@ -199,7 +200,7 @@ rule dnadiff:
         asm="results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.oriented.fasta",
         sinfo_flag="results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk_sinfo/update_sinfo_mod.flag",
         # gtdbtk_sum="results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk.bac120.summary.tsv",
-        reference=get_ref_path
+        reference=get_reference
     output:
         "results/{experiment}/{barcode}/dnadiff/medaka_{assembler}_pilon2.oriented.report"
     params:
@@ -283,57 +284,15 @@ rule busco_assembly:
         "cp {output.outfile} {params.summary_dir}" 
 
 
-# rule busco_reference:
-#     input:
-#         # expand("results/{experiment}/{barcode}/busco_medaka_{assembler}/run_{genus}_odb10/short_summary.txt", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS, genus=BUSCO_GENUS),
-#         # ef_genome = get_ref_path,
-#         # exp_folder = "results/{experiment}/{ref_name}",
-#         # ref_genome = "resources/{experiment}/{ref_name}.fna",
-#         references=get_ref_path,
-#         expand("results/{experiment}/medaka_{assembler}_dwnlds/download_done.flag", experiment=EXPERIMENT, assembler=ASSEMBLERS)
-#     params:
-#         genus=BUSCO_GENUS,
-#         # tmp_out="results/{experiment}/{ref_name}/run_bacteria_odb10/short_summary.txt",
-#         tmp_out="results/{experiment}/{assembler}_busco_ref/run_bacteria_odb10/short_summary.txt",
-#         summary_dir=get_busco_graph_outdir,
-#         outdir="results/{experiment}/{assembler}_busco_ref"
-#         # ref_name=REFERENCE
-#     output:
-#         # outdir=directory("results/{experiment}/{ref_name}"),
-#         outf_root="results/{experiment}/{ref_name}/run_bacteria_odb10/short_summary.specific.{ref_name}.txt"
-#     conda:
-#         "envs/busco.yaml"
-#     log:
-#         "logs/{experiment}/{ref_name}/{ref_name}_busco_reference.log"
-#     shell:
-#         "for ref in references;"
-#         "do"
-#         " busco -i $ref -l {params.genus} -o {params.outdir}_$ref -m genome -f;"
-#         " mv {params.tmp_out} "results/{experiment}/{ref_name}/run_bacteria_odb10/short_summary.specific.{ref_name}.txt";"
-#         "cp {output.outfile} {params.summary_dir} 2>&1 > {log}"
-#         # "busco -i {input.ref_genome} -l {params.genus} -o {params.outdir} -m genome -f && "
-#         # "mv {params.tmp_out} {output.outfile} && "
-#         # "cp {output.outfile} {params.summary_dir} 2>&1 > {log}"
-
-
 rule busco_reference:
     input:
-        # expand("results/{experiment}/{barcode}/busco_medaka_{assembler}/run_{genus}_odb10/short_summary.txt", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS, genus=BUSCO_GENUS),
-        # ef_genome = get_ref_path,
-        # exp_folder = "results/{experiment}/{ref_name}",
-        # ref_genome = "resources/{experiment}/{ref_name}.fna",
         expand("results/{experiment}/medaka_{assembler}_dwnlds/download_done.flag", experiment=EXPERIMENT, assembler=ASSEMBLERS),
-        references=get_ref_path,
+        references=get_references_path,
     params:
         genus=BUSCO_GENUS,
-        # tmp_out="results/{experiment}/{ref_name}/run_bacteria_odb10/short_summary.txt",
-        # tmp_out="results/{experiment}/{assembler}_busco_ref/run_bacteria_odb10/short_summary.txt",
         summary_dir=get_busco_graph_outdir,
         outdir="results/{experiment}/{assembler}_busco_ref"
-        # ref_name=REFERENCE
     output:
-        # outdir=directory("results/{experiment}/{ref_name}"),
-        # outf_root="results/{experiment}/{ref_name}/run_bacteria_odb10/short_summary.specific.{ref_name}.txt"
         "results/{experiment}/{assembler}_busco_ref/ref_busco_completion.flag"
     conda:
         "envs/busco.yaml"
@@ -345,15 +304,11 @@ rule busco_reference:
         " ref_name=$(basename $ref_path);"
         " IFS='.' read -ra SPLIT <<< $ref_name;"
         " ref_name=${{SPLIT[0]}};"
-        # " echo BUSCO_$ref_path;"
         " busco -i $ref_path -l {params.genus} -o {params.outdir}_$ref_name -m genome -f;"
         " mv {params.outdir}_$ref_name/run_bacteria_odb10/short_summary.txt {params.outdir}_$ref_name/run_bacteria_odb10/short_summary.specific.$ref_name.txt;"
         " cp {params.outdir}_$ref_name/run_bacteria_odb10/short_summary.specific.$ref_name.txt {params.summary_dir}; "
         "done; "
         "touch results/{wildcards.experiment}/{wildcards.assembler}_busco_ref/ref_busco_completion.flag 2>&1 > {log}"
-        # "busco -i {input.ref_genome} -l {params.genus} -o {params.outdir} -m genome -f && "
-        # "mv {params.tmp_out} {output.outfile} && "
-        # "cp {output.outfile} {params.summary_dir} 2>&1 > {log}"
 
 
 rule busco_generate_plot:
@@ -681,20 +636,22 @@ rule plasclass:
         "python pkgs/PlasClass/classify_fasta.py -f {input} -o {output} -p {threads}"
         
 
-# rule circos:
-#     input:
-#         asm = "results/{experiment}/{barcode}/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.fasta"
-#     output:
-#         "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_plasclass/plasclass.probs.out"
-#     threads:
-#         8
-#     conda:
-#         "envs/circos.yaml"
-#     log:
-#         "logs/{experiment}/{barcode}/medaka_{assembler}_pilon2/circos.log"
-#     shell:
-#         # "curr_env=$(conda info --env | grep '*' | rev | cut -d' ' -f1 | rev) && "
-#         # "python $curr_env/lib/python3.9/site-packages/plasclass/plasclass.py -f {input} -o {output} -p {threads}"
+rule mummer2circos_single:
+    input:
+        asm="results/{experiment}/{barcode}/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.fasta",
+        # "results/{experiment}/medaka_{assembler}_pilon2_gtdbtk_sinfo/confirm_or_get_reference.flag"
+        ref=get_reference
+    output:
+        "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_circos/{experiment}_{barcode}_circos.svg"
+    threads:
+        8
+    conda:
+        "envs/mummer2circos.yaml"
+    log:
+        "logs/{experiment}/{barcode}/medaka_{assembler}_pilon2/circos.log"
+    shell:
+        # "circos -outputfile {output} -conf circos_data/circos.config"
+        "mummer2circos -l -r genomes/NZ_CP008827.fna -q {input.asm}"
 
 
 # classification; checked

@@ -1,16 +1,28 @@
 
-def get_ref_path(wildcards):
-    # ref_name = SAMPLE_INFO[wildcards.barcode]["ref"]
-    # return os.path.join("resources", wildcards.experiment, ref_name)
+def get_references_path(wildcards):
     ref_path=f"resources/{wildcards.experiment}"
     references = []
     fasta_exts = ["fa", "fna", "fasta"]
     for ext in fasta_exts:
         ext_refs=glob.glob(os.path.join(ref_path, f"*.{ext}"))
-        # if len(ext_refs) > 0:
         references.extend(ext_refs)
     print("references", references)
     return references
+
+
+def get_reference(wildcards):
+    sinfo_mod = f"results/{wildcards.experiment}/medaka_{wildcards.assembler}_pilon2_gtdbtk_sinfo/gtdbtk_sinfo_mod.json"
+    if os.path.exists(sinfo_mod):
+        try:
+            ref_acc = SAMPLE_INFO[wildcards.barcode]["gtdb_ref"]
+            ref_path=glob.glob((os.path.join("resources", wildcards.experiment, f"{gtdb_ref}_*_genomic.fna")))[0]
+        except:
+            ref_name = SAMPLE_INFO[wildcards.barcode]["ref_fallback"]
+            ref_path = os.path.join("resources", wildcards.experiment, ref_name)
+    else:
+        ref_name = SAMPLE_INFO[wildcards.barcode]["ref_fallback"]
+        ref_path = os.path.join("resources", wildcards.experiment, ref_name)
+    return ref_path
 
 
 def get_fallback_ref(wildcards):

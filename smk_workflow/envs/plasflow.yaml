@@ -1,7 +1,9 @@
 channels:
-  - bioconda
   - conda-forge
+  - smaegol
+  - bioconda
 dependencies:
+  - protobuf
+  - python =3.5
+  - tensorflow
   - plasflow
-  # - python =3.5
-  # - tensorflow

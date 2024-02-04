@@ -81,4 +81,34 @@ rule pilon_iteration_2:
         "samtools sort {output.bam} > {output.sort} && "
         "samtools index {output.sort} && "
         "pilon -Xmx16G --genome {input.asm} --bam {output.sort} --output {params.pilon_prefix} --outdir {params.outdir} 2>&1 > {log}"
+
+
+rule pilon_iteration_3:
+    input:
+        asm = "results/{experiment}/{barcode}/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.fasta",
+        ilmn_reads=get_clipped_ilmn_reads
+    output:
+        sam=temp("results/{experiment}/{barcode}/medaka_{assembler}_pilon3/medaka_{assembler}_ilmn2pilon_2.sam"),
+        bam=temp("results/{experiment}/{barcode}/medaka_{assembler}_pilon3/idx2_medaka_{assembler}_ilmn2pilon_2.bam"),
+        sort="results/{experiment}/{barcode}/medaka_{assembler}_pilon3/idx2_medaka_{assembler}_ilmn2pilon_2.bam.sort",
+        asm="results/{experiment}/{barcode}/medaka_{assembler}_pilon3/medaka_{assembler}_pilon3.fasta"
+    params:
+        # threads=8,
+        outdir="results/{experiment}/{barcode}/medaka_{assembler}_pilon3",
+        bwa_prefix="results/{experiment}/{barcode}/medaka_{assembler}_pilon3/idx3_medaka_{assembler}_pilon2",
+        pilon_prefix="medaka_{assembler}_pilon3",
+    threads:
+        8
+    conda:
+        "../envs/pilon_iteration.yaml"
+    log:
+        "logs/{experiment}/{barcode}/medaka_{assembler}_pilon3.log"
+    shell:
+        "mkdir -p {params.outdir} && "
+        "bwa-mem2 index {input.asm} -p {params.bwa_prefix} && "
+        "bwa-mem2 mem -t {threads} {params.bwa_prefix} {input.ilmn_reads} > {output.sam}  && "
+        "samtools view -hbS {output.sam} > {output.bam} && "
+        "samtools sort {output.bam} > {output.sort} && "
+        "samtools index {output.sort} && "
+        "pilon -Xmx16G --genome {input.asm} --bam {output.sort} --output {params.pilon_prefix} --outdir {params.outdir} 2>&1 > {log}"
         

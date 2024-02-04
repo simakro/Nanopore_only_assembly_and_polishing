@@ -74,7 +74,7 @@ rule all:
         
         expand("results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.oriented.fasta", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk.bac120.summary.tsv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
-        expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_plasflow/medaka_{assembler}_pilon2_plasflow.tsv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
+        # expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_plasflow/medaka_{assembler}_pilon2_plasflow.tsv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_plasclass/plasclass.probs.out", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_classification.txt", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         # expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/confirm_or_get_reference.flag", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
@@ -83,7 +83,7 @@ rule all:
         # expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_sinfo_update.flag", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
         expand("results/{experiment}/medaka_{assembler}_dwnlds/download_done.flag", experiment=EXPERIMENT, assembler=ASSEMBLERS),
         expand("results/{experiment}/{assembler}_busco_ref/ref_busco_completion.flag", experiment=EXPERIMENT, assembler=ASSEMBLERS),
-        expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_circos/{experiment}_{barcode}_circos.pdf", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
+        expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_circos/{experiment}_{barcode}_circos.svg", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
 
 
 rule preprocessing:
@@ -197,6 +197,7 @@ rule polish_medaka:
 rule dnadiff:
     input:
         # asm="results/{experiment}/{barcode}/{assembly}.fasta",
+        "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk.bac120.summary.tsv",
         asm="results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.oriented.fasta",
         sinfo_flag="results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk_sinfo/update_sinfo_mod.flag",
         # gtdbtk_sum="results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk.bac120.summary.tsv",
@@ -407,8 +408,8 @@ rule classify_gtdbtk:
         "logs/{experiment}/{barcode}/medaka_{assembler}_pilon2/classify_gtdbtk.log"
     shell:
         # "gtdbtk classify_wf --genome_dir <my_genomes> --out_dir <output_dir> 2>&1 > {log}"
-        # "mamba env config vars set GTDBTK_DATA_PATH=/home/simon/mambaforge/envs/gtdbtk/share/gtdbtk-2.3.2/db && "
-        "mamba env config vars set GTDBTK_DATA_PATH=/homes/simon/.conda/envs/gtdbtk/share/gtdbtk-2.3.2/db && "
+        "mamba env config vars set GTDBTK_DATA_PATH=/home/simon/mambaforge/envs/gtdbtk/share/gtdbtk-2.3.2/db && "
+        # "mamba env config vars set GTDBTK_DATA_PATH=/homes/simon/.conda/envs/gtdbtk/share/gtdbtk-2.3.2/db && "
         "gtdbtk classify_wf --genome_dir {params.genome_dir} --out_dir {params.out_dir} --extension fasta --cpu {threads} --mash_db resources 2>&1 > {log}"
 
 
@@ -608,7 +609,7 @@ rule plasflow:
 
 rule plasclass:
     input:
-        asm = "results/{experiment}/{barcode}/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.fasta"
+        asm = "results/{experiment}/{barcode}/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.fasta" # consider using .oriented
     output:
         # "results/{experiment}/{barcode}/circl_fixstart/{assembly}.oriented.fasta"#,
         # directory("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk")
@@ -631,12 +632,16 @@ rule plasclass:
 
 rule mummer2circos_single:
     input:
-        asm="results/{experiment}/{barcode}/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.fasta",
+        "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk.bac120.summary.tsv",
+        # asm="results/{experiment}/{barcode}/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.fasta",
+        asm="results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.oriented.fasta",
         ref=get_reference_file
     output:
-        "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_circos/{experiment}_{barcode}_circos.pdf"
+        "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_circos/{experiment}_{barcode}_circos.svg"
     params:
-        prefix="results/{experiment}/{barcode}/medaka_{assembler}_pilon2_circos/{experiment}_{barcode}_circos"
+        # prefix="results/{experiment}/{barcode}/medaka_{assembler}_pilon2_circos/{experiment}_{barcode}_circos",
+        prefix="{experiment}_{barcode}_circos",
+        workdir="results/{experiment}/{barcode}/medaka_{assembler}_pilon2_circos"
     threads:
         4
     conda:
@@ -646,7 +651,9 @@ rule mummer2circos_single:
         "logs/{experiment}/{barcode}/medaka_{assembler}_pilon2/mummer2circos.log"
     shell:
         # "circos -outputfile {output} -conf circos_data/circos.config"
-        "mummer2circos.py -l -r {input.ref} -q {input.asm} -o {params.prefix}"
+        "mkdir -p {params.workdir} && "
+        "cd {params.workdir} && "
+        "mummer2circos -l -r ../../../../{input.ref} -q ../../../../{input.asm} -o {params.prefix}"
         #"python3 pkgs/mummer2circos/mummer2circos/mummer2circos.py -l -r {input.ref} -q {input.asm} -o {params.prefix}"
 
 

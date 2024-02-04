@@ -16,17 +16,18 @@ def get_reference_file(wildcards):
     sinfo_mod = f"results/{wildcards.experiment}/medaka_{wildcards.assembler}_pilon2_gtdbtk_sinfo/gtdbtk_sinfo_mod.json"
     if os.path.exists(sinfo_mod):
         print("Updated sample_info in json format is available")
-        try:
-            print("Trying to retrieve reference based on gtdbtk classification")
-            ref_acc = SAMPLE_INFO[wildcards.barcode]["gtdb_ref"]
-            print("ref_acc", ref_acc)
-            ref_path=glob.glob(os.path.join("resources", wildcards.experiment, f"{ref_acc}_*_genomic.fna"))[0]
-            print(f"Reference file path: {ref_path}")
-        except:
-            print("reference file path could not be determined. Reverting to fallback.")
-            ref_name = SAMPLE_INFO[wildcards.barcode]["ref_fallback"]
-            ref_path = os.path.join("resources", wildcards.experiment, ref_name)
-            
+        with open(sinfo_mod, "r") as sim:
+            sinfo = json.loads(sim.read())
+            try:
+                print("Trying to retrieve reference based on gtdbtk classification")
+                ref_acc = sinfo[wildcards.barcode]["gtdb_ref"]
+                print("ref_acc", ref_acc)
+                ref_path=glob.glob(os.path.join("resources", wildcards.experiment, f"{ref_acc}_*_genomic.fna"))[0]
+                print(f"Reference file path: {ref_path}")
+            except:
+                print("reference file path could not be determined. Reverting to fallback.")
+                ref_name = SAMPLE_INFO[wildcards.barcode]["ref_fallback"]
+                ref_path = os.path.join("resources", wildcards.experiment, ref_name) 
     else:
         print("Updated sample_info in json format does not yet exist")
         print("Using fallback for the time being")
@@ -36,7 +37,7 @@ def get_reference_file(wildcards):
 
 
 def get_fallback_ref(wildcards):
-    reference = SAMPLE_INFO[wildcards.barcode]["ref"]
+    reference = SAMPLE_INFO[wildcards.barcode]["ref_fallback"]
     comp_ext = [".gbk", ".gb", ".faa", ".gbff"]
     prot_files = [f'{(".").join(reference.split(".")[:-1])}{ext}' for ext in comp_ext]
     res_dir = os.path.join("resources", wildcards.experiment)
@@ -135,6 +136,7 @@ def get_clipped_ilmn_reads(wildcards):
 
 
 def get_genome_dwnld_files(wildcards):
+    print("Retrieving download files.")
     dwnld_dir = checkpoints.confirm_or_get_reference.get(**wildcards).output.dwnl_dir
     print("dwnld_dir", dwnld_dir)
     # ilmn_reads = get_ilmn_reads(wildcards)

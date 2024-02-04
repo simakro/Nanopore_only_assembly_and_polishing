@@ -74,7 +74,7 @@ rule all:
         
         expand("results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.oriented.fasta", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk.bac120.summary.tsv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
-        # expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_plasflow/medaka_{assembler}_pilon2_plasflow.tsv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
+        ### expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_plasflow/medaka_{assembler}_pilon2_plasflow.tsv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_plasclass/plasclass.probs.out", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_classification.txt", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         # expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/confirm_or_get_reference.flag", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
@@ -525,7 +525,7 @@ checkpoint confirm_or_get_reference:
             "r"
             ) as sinfo:
             sinfo_mod = json.load(sinfo)
-            print(sinfo_mod)
+            print("sinfo_mod", sinfo_mod)
         dwnld = set()
         for sample in sinfo_mod:
             messages = []
@@ -552,15 +552,17 @@ checkpoint confirm_or_get_reference:
             with open(f"results/{EXPERIMENT}/medaka_{wildcards.assembler}_pilon2_gtdbtk_sinfo/confirm_or_get_reference.flag", "a") as flag:
                 for m in messages:
                     flag.write(f"{m}\n")
-
+        print("dwnld_set", dwnld)
         os.makedirs(f"results/{EXPERIMENT}/medaka_{wildcards.assembler}_pilon2_gtdbtk_dwnld", exist_ok=True)
         for ref in dwnld:
+            print("Writing download file for: ", ref)
             with open(f"results/{EXPERIMENT}/medaka_{wildcards.assembler}_pilon2_gtdbtk_dwnld/{ref}.dwnld", "w") as lst:
                 lst.write(ref)
 
 
 checkpoint download_references:
     input:
+        "results/{experiment}/medaka_{assembler}_pilon2_gtdbtk_sinfo/confirm_or_get_reference.flag",
         accs=get_genome_dwnld_files
     output:
         "results/{experiment}/medaka_{assembler}_dwnlds/download_done.flag",
@@ -603,9 +605,9 @@ rule plasflow:
     log:
         "logs/{experiment}/{barcode}/medaka_{assembler}_pilon2/plasflow.log"
     shell:
-        # "curr_env=$(conda info --env | grep '*' | rev | cut -d' ' -f1 | rev) && "
-        # "python $curr_env/lib/python3.5/site-packages/PlasFlow/PlasFlow.py --input {input} --output {output} 2>&1 > {log}"
-        "python pkgs/PlasFlow/PlasFlow.py --input {input} --output {output} 2>&1 > {log}"
+        "curr_env=$(conda info --env | grep '*' | rev | cut -d' ' -f1 | rev) && "
+        "python $curr_env/lib/python3.5/site-packages/PlasFlow/PlasFlow.py --input {input} --output {output} 2>&1 > {log}"
+        # "python pkgs/PlasFlow/PlasFlow.py --input {input} --output {output} 2>&1 > {log}"
 
 
 rule plasclass:
@@ -673,14 +675,14 @@ rule assemblytics:
     shell:
         "Assemblytics {input} {params.output_prefix} {params.unique_anchor_length} {params.min_variant_size} {params.max_variant_size}"
 
-
+# add a third round of pilon polishing
 # classification; checked
 # Plasmids; checked
 # transfer BUSCO plot generation downstream of classifciation; checked
-# Synteny
-# Detect and analyze variants: assemblytics
-# Circular plot with GC skew etc.; work in progress
-# Quality assessment (QUAST or similar)
+# Synteny; checked - covered by assemblytics
+# Detect and analyze variants: assemblytics; checked
+# Circular plot with GC skew etc.; checked
+# Quality assessment (QUAST or similar); probably covered by assemblytics
 # find a way to remove clipped illumina reads (temp() not working due to unknown name)
 # add a rule running a script that automatically checks if PlasFLow and PlasCLass are in pkgs dir and otherwise downloads/clones them from github and removes git from them...difficult and the last potentially dangerous
 # PlasClass is only 2,5Mb that could be fully included; PLasFLow on the other hand is 65Mb; can the latter be left out completely, does it add any value? 

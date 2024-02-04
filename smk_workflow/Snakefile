@@ -415,6 +415,7 @@ rule classify_gtdbtk:
         "logs/{experiment}/{barcode}/medaka_{assembler}_pilon2/classify_gtdbtk.log"
     shell:
         # "gtdbtk classify_wf --genome_dir <my_genomes> --out_dir <output_dir> 2>&1 > {log}"
+        # "mamba env config vars set GTDBTK_DATA_PATH=/home/simon/mambaforge/envs/gtdbtk/share/gtdbtk-2.3.2/db && "
         "mamba env config vars set GTDBTK_DATA_PATH=/homes/simon/.conda/envs/gtdbtk/share/gtdbtk-2.3.2/db && "
         "gtdbtk classify_wf --genome_dir {params.genome_dir} --out_dir {params.out_dir} --extension fasta --cpu {threads} --mash_db resources 2>&1 > {log}"
 

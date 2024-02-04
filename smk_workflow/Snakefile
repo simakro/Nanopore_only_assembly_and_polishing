@@ -70,7 +70,7 @@ rule all:
         # expand("results/{experiment}/{barcode}/ilmn_fastqc_after/fastqc_complete.flag", experiment=EXPERIMENT, barcode=BARCODES)
         
         ## expand("results/{experiment}/{barcode}/dnadiff/medaka_{assembler}/consensus.report", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
-        ### expand("results/{experiment}/{barcode}/dnadiff/medaka_{assembler}_pilon2.oriented.report", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
+        expand("results/{experiment}/{barcode}/dnadiff/medaka_{assembler}_pilon2.oriented.report", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         
         expand("results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.oriented.fasta", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk.bac120.summary.tsv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
@@ -83,7 +83,7 @@ rule all:
         # expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_sinfo_update.flag", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
         expand("results/{experiment}/medaka_{assembler}_dwnlds/download_done.flag", experiment=EXPERIMENT, assembler=ASSEMBLERS),
         expand("results/{experiment}/{assembler}_busco_ref/ref_busco_completion.flag", experiment=EXPERIMENT, assembler=ASSEMBLERS),
-        expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_circos/{experiment}_{barcode}_circos.svg", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
+        expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_circos/{experiment}_{barcode}_circos.pdf", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
 
 
 rule preprocessing:
@@ -200,9 +200,10 @@ rule dnadiff:
         asm="results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.oriented.fasta",
         sinfo_flag="results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk_sinfo/update_sinfo_mod.flag",
         # gtdbtk_sum="results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk.bac120.summary.tsv",
-        reference=get_reference
+        reference=get_reference_file
     output:
-        "results/{experiment}/{barcode}/dnadiff/medaka_{assembler}_pilon2.oriented.report"
+        "results/{experiment}/{barcode}/dnadiff/medaka_{assembler}_pilon2.oriented.report",
+        "results/{experiment}/{barcode}/dnadiff/medaka_{assembler}_pilon2.oriented.delta"
     params:
         prefix="results/{experiment}/{barcode}/dnadiff/medaka_{assembler}_pilon2.oriented"
     conda:
@@ -231,15 +232,6 @@ rule prokka_expected_ref:
     shell:
         # "prokka --kingdom Bacteria --genus {params.genus} --species {params.species} {input.asm} --usegenus --outdir {output.genusdb_dir} --prefix {wildcards.experiment}_{wildcards.barcode}_{wildcards.assembler}_prokka_genusdb --force && " 
         "prokka --proteins {input.prot_file} {input.asm} --outdir {output.protgbk_dir} --prefix {wildcards.experiment}_{wildcards.barcode}_{wildcards.assembler}_prokka_protgbk_exp --force 2>&1 > {log}"
-
-
-# rule get_ref_based_on_gtdbtk_class:
-#     input:
-#         "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk/gtdbtk_classification.txt"
-#     output:
-#         "results/{experiment}/{barcode}/got_ref_for_medaka_{assembler}_pilon2_gtdbtk.flag"
-#     run:
-#         spec_call = SAMPLE_INFO[""]
 
 
 rule prokka_gtdbtk_ref:
@@ -620,7 +612,7 @@ rule plasclass:
         # "results/{experiment}/{barcode}/circl_fixstart/{assembly}.oriented.fasta"#,
         # directory("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk")
         "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_plasclass/plasclass.probs.out"
-    params:
+    # params:
         # out_prefix = "results/{experiment}/{barcode}/circl_fixstart/{assembly}.oriented"
         # genome_dir = "results/{experiment}/{barcode}/medaka_{assembler}_pilon2",
         # out_dir= "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_gtdbtk"
@@ -639,26 +631,44 @@ rule plasclass:
 rule mummer2circos_single:
     input:
         asm="results/{experiment}/{barcode}/medaka_{assembler}_pilon2/medaka_{assembler}_pilon2.fasta",
-        # "results/{experiment}/medaka_{assembler}_pilon2_gtdbtk_sinfo/confirm_or_get_reference.flag"
-        ref=get_reference
+        ref=get_reference_file
     output:
-        "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_circos/{experiment}_{barcode}_circos.svg"
+        "results/{experiment}/{barcode}/medaka_{assembler}_pilon2_circos/{experiment}_{barcode}_circos.pdf"
+    params:
+        prefix="results/{experiment}/{barcode}/medaka_{assembler}_pilon2_circos/{experiment}_{barcode}_circos"
     threads:
-        8
+        4
     conda:
+        # "envs/mummer2circos_pkg.yaml"
         "envs/mummer2circos.yaml"
     log:
-        "logs/{experiment}/{barcode}/medaka_{assembler}_pilon2/circos.log"
+        "logs/{experiment}/{barcode}/medaka_{assembler}_pilon2/mummer2circos.log"
     shell:
         # "circos -outputfile {output} -conf circos_data/circos.config"
-        "mummer2circos -l -r genomes/NZ_CP008827.fna -q {input.asm}"
+        "mummer2circos.py -l -r {input.ref} -q {input.asm} -o {params.prefix}"
+        #"python3 pkgs/mummer2circos/mummer2circos/mummer2circos.py -l -r {input.ref} -q {input.asm} -o {params.prefix}"
+
+
+rule assemblytics:
+    input:
+        "results/{experiment}/{barcode}/dnadiff/medaka_{assembler}_pilon2.oriented.delta"
+    output:
+        "results/{experiment}/{barcode}/assemblytics/medaka_{assembler}_pilon2.oriented.Assemblytics.Dotplot_filtered.png"
+    params:
+        output_prefix="results/{experiment}/{barcode}/assemblytics/medaka_{assembler}_pilon2.oriented",
+        unique_anchor_length=10000,
+        min_variant_size=10000,
+        max_variant_size=1,
+    shell:
+        "Assemblytics {input.delta_file} {params.output_prefix} {params.unique_anchor_length} {params.min_variant_size} {params.max_variant_size}"
 
 
 # classification; checked
 # Plasmids; checked
 # transfer BUSCO plot generation downstream of classifciation; checked
 # Synteny
-# Circular plot with GC skew etc.
+# Detect and analyze variants: assemblytics
+# Circular plot with GC skew etc.; work in progress
 # Quality assessment (QUAST or similar)
 # find a way to remove clipped illumina reads (temp() not working due to unknown name)
 # add a rule running a script that automatically checks if PlasFLow and PlasCLass are in pkgs dir and otherwise downloads/clones them from github and removes git from them...difficult and the last potentially dangerous

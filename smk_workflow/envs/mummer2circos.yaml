@@ -1,4 +1,9 @@
 channels:
   - bioconda
+  - conda-forge
 dependencies:
+  # - perl-math-round=0.07
   - mummer2circos
+  # - perl=5.26.2
+  # - python=3.7
+  # - biopython=1.72

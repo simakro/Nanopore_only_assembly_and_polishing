@@ -1,5 +1,6 @@
 
 def get_references_path(wildcards):
+    print("Getting references path")
     ref_path=f"resources/{wildcards.experiment}"
     references = []
     fasta_exts = ["fa", "fna", "fasta"]
@@ -10,16 +11,25 @@ def get_references_path(wildcards):
     return references
 
 
-def get_reference(wildcards):
+def get_reference_file(wildcards):
+    print("Getting reference file")
     sinfo_mod = f"results/{wildcards.experiment}/medaka_{wildcards.assembler}_pilon2_gtdbtk_sinfo/gtdbtk_sinfo_mod.json"
     if os.path.exists(sinfo_mod):
+        print("Updated sample_info in json format is available")
         try:
+            print("Trying to retrieve reference based on gtdbtk classification")
             ref_acc = SAMPLE_INFO[wildcards.barcode]["gtdb_ref"]
-            ref_path=glob.glob((os.path.join("resources", wildcards.experiment, f"{gtdb_ref}_*_genomic.fna")))[0]
+            print("ref_acc", ref_acc)
+            ref_path=glob.glob(os.path.join("resources", wildcards.experiment, f"{ref_acc}_*_genomic.fna"))[0]
+            print(f"Reference file path: {ref_path}")
         except:
+            print("reference file path could not be determined. Reverting to fallback.")
             ref_name = SAMPLE_INFO[wildcards.barcode]["ref_fallback"]
             ref_path = os.path.join("resources", wildcards.experiment, ref_name)
+            
     else:
+        print("Updated sample_info in json format does not yet exist")
+        print("Using fallback for the time being")
         ref_name = SAMPLE_INFO[wildcards.barcode]["ref_fallback"]
         ref_path = os.path.join("resources", wildcards.experiment, ref_name)
     return ref_path

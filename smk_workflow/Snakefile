@@ -55,7 +55,7 @@ rule all:
         # "results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk_class/{experiment}_{barcode}_{assembler}_prokka_protgbk_class.tsv" # gtdbtk determined ref
         # expand("results/{experiment}/{barcode}/homopolish_medaka_{assembler}/consensus_homopolished.fasta", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         # # expand("results/{experiment}/{barcode}/busco_medaka_{assembler}/run_herpesviridae_odb10/short_summary.json", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
-        expand("results/{experiment}/{reference}/run_{genus}_odb10/short_summary.specific.{reference}.txt", experiment=EXPERIMENT, reference=REFERENCES, genus=BUSCO_GENUS),
+        ###expand("results/{experiment}/{reference}/run_{genus}_odb10/short_summary.specific.{reference}.txt", experiment=EXPERIMENT, reference=REFERENCES, genus=BUSCO_GENUS),
         expand("results/{experiment}/{barcode}/busco_medaka_{assembler}_pilon2/run_{genus}_odb10/short_summary.specific.{barcode}.txt", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS, genus=BUSCO_GENUS),
         # expand("results/{experiment}/busco_graph_{assembler}/busco_figure.png", experiment=EXPERIMENT, assembler=ASSEMBLERS)
         # # expand("results/{experiment}/{barcode}/filt_params.json", experiment=EXPERIMENT, barcode=BARCODES)
@@ -84,6 +84,7 @@ rule all:
         expand("results/{experiment}/medaka_{assembler}_dwnlds/download_done.flag", experiment=EXPERIMENT, assembler=ASSEMBLERS),
         expand("results/{experiment}/{assembler}_busco_ref/ref_busco_completion.flag", experiment=EXPERIMENT, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon2_circos/{experiment}_{barcode}_circos.svg", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
+        expand("results/{experiment}/{barcode}/assemblytics/{barcode}_medaka_{assembler}_pilon2.oriented.Assemblytics.Dotplot_filtered.png", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
 
 
 rule preprocessing:
@@ -653,7 +654,7 @@ rule mummer2circos_single:
         # "circos -outputfile {output} -conf circos_data/circos.config"
         "mkdir -p {params.workdir} && "
         "cd {params.workdir} && "
-        "mummer2circos -l -r ../../../../{input.ref} -q ../../../../{input.asm} -o {params.prefix}"
+        "mummer2circos -f -l -r ../../../../{input.ref} -q ../../../../{input.asm} -o {params.prefix}"
         #"python3 pkgs/mummer2circos/mummer2circos/mummer2circos.py -l -r {input.ref} -q {input.asm} -o {params.prefix}"
 
 
@@ -661,14 +662,16 @@ rule assemblytics:
     input:
         "results/{experiment}/{barcode}/dnadiff/medaka_{assembler}_pilon2.oriented.delta"
     output:
-        "results/{experiment}/{barcode}/assemblytics/medaka_{assembler}_pilon2.oriented.Assemblytics.Dotplot_filtered.png"
+        "results/{experiment}/{barcode}/assemblytics/{barcode}_medaka_{assembler}_pilon2.oriented.Assemblytics.Dotplot_filtered.png"
     params:
-        output_prefix="results/{experiment}/{barcode}/assemblytics/medaka_{assembler}_pilon2.oriented",
+        output_prefix="results/{experiment}/{barcode}/assemblytics/{barcode}_medaka_{assembler}_pilon2.oriented",
         unique_anchor_length=10000,
         min_variant_size=10000,
         max_variant_size=1,
+    conda:
+        "envs/assemblytics.yaml"
     shell:
-        "Assemblytics {input.delta_file} {params.output_prefix} {params.unique_anchor_length} {params.min_variant_size} {params.max_variant_size}"
+        "Assemblytics {input} {params.output_prefix} {params.unique_anchor_length} {params.min_variant_size} {params.max_variant_size}"
 
 
 # classification; checked

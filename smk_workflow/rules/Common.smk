@@ -110,8 +110,6 @@ def get_qual_filt_param(wildcards):
 
 
 def get_busco_graph_outdir(wildcards):
-    # return os.path.split(wildcards.input)[0]
-    # outdir = f"results/{wildcards.experiment}/busco_graph_{wildcards.assembler}"
     outdir = f"results/{wildcards.experiment}/busco_graph/{wildcards.assembler}"
     if not os.path.exists(f"results/{wildcards.experiment}"):
        os.mkdir(f"results/{wildcards.experiment}")
@@ -119,7 +117,6 @@ def get_busco_graph_outdir(wildcards):
        os.mkdir(f"results/{wildcards.experiment}/busco_graph")
     if not os.path.exists(outdir):
        os.mkdir(outdir)
-    print(outdir)
     return outdir
 
 
@@ -127,25 +124,19 @@ def get_ilmn_reads(wildcards):
     files = SAMPLE_INFO[wildcards.barcode]["illumina"]
     path = os.path.join("data", wildcards.experiment, "short-reads")
     paths = [os.path.join(path, f) for f in files]
-    # both_space_sep = f"{paths[0]} {paths[1]}" # surprisingly returning the paths-list appears to work as input for all cli commands; possibly snakemake already handles converting them in space seperated strings?
+    # both_space_sep = f"{paths[0]} {paths[1]}" 
+    # returning the paths-list appears to work as input for all cli commands;
+    # apparently snakemake already converts them in space seperated strings
     return paths
 
 
 def get_clipped_ilmn_reads(wildcards):
     ilmn_clip_dir = checkpoints.clip_adapters_sm.get(**wildcards).output[0]
-    # ilmn_reads = get_ilmn_reads(wildcards)
     return glob.glob(os.path.join(ilmn_clip_dir, "*_clipped.fq"))
 
 
 def get_genome_dwnld_files(wildcards):
     print("Retrieving download files.")
     dwnld_dir = checkpoints.confirm_or_get_reference.get(**wildcards).output.dwnl_dir
-    print("dwnld_dir", dwnld_dir)
-    # ilmn_reads = get_ilmn_reads(wildcards)
     dwnl_paths = glob.glob(os.path.join(dwnld_dir, "*.dwnld"))
-    print("dwnl_paths", dwnl_paths)
-    # dwnl_fls = [os.path.split(f)[-1] for f in dwnl_paths]
-    # print("dwnl_fls", dwnl_fls)
-    # accessions = [".".join(f.split(".")[:-1]) for f in dwnl_fls]
-    # print("accessions", accessions)
     return dwnl_paths

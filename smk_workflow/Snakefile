@@ -221,24 +221,24 @@ rule dnadiff:
         "dnadiff  -p {params.prefix} {input.reference} {input.asm} 2>&1 > {log}"
 
 
-rule prokka_expected_ref:
-    input:
-        # asm="results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta",
-        asm="results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}_pilon3/medaka_{assembler}_pilon3.oriented.fasta",
-        prot_file=get_ref_proteins
-    output:
-        protgbk_dir=directory("results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk_exp"),
-        protg_tsv="results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk_exp/{experiment}_{barcode}_{assembler}_prokka_protgbk_exp.tsv"
-    params:
-        genus=get_prokka_genus,
-        # species=get_prokka_species
-    log:
-        "logs/{experiment}/{barcode}/prokka_medaka_{assembler}_exp.log"
-    conda:
-        "envs/prokka.yaml"
-    shell:
-        # "prokka --kingdom Bacteria --genus {params.genus} --species {params.species} {input.asm} --usegenus --outdir {output.genusdb_dir} --prefix {wildcards.experiment}_{wildcards.barcode}_{wildcards.assembler}_prokka_genusdb --force && " 
-        "prokka --proteins {input.prot_file} {input.asm} --outdir {output.protgbk_dir} --prefix {wildcards.experiment}_{wildcards.barcode}_{wildcards.assembler}_prokka_protgbk_exp --force 2>&1 > {log}"
+# rule prokka_expected_ref:
+#     input:
+#         # asm="results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta",
+#         asm="results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}_pilon3/medaka_{assembler}_pilon3.oriented.fasta",
+#         prot_file=get_ref_proteins
+#     output:
+#         protgbk_dir=directory("results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk_exp"),
+#         protg_tsv="results/{experiment}/{barcode}/prokka_medaka_{assembler}_protgbk_exp/{experiment}_{barcode}_{assembler}_prokka_protgbk_exp.tsv"
+#     params:
+#         genus=get_prokka_genus,
+#         # species=get_prokka_species
+#     log:
+#         "logs/{experiment}/{barcode}/prokka_medaka_{assembler}_exp.log"
+#     conda:
+#         "envs/prokka.yaml"
+#     shell:
+#         # "prokka --kingdom Bacteria --genus {params.genus} --species {params.species} {input.asm} --usegenus --outdir {output.genusdb_dir} --prefix {wildcards.experiment}_{wildcards.barcode}_{wildcards.assembler}_prokka_genusdb --force && " 
+#         "prokka --proteins {input.prot_file} {input.asm} --outdir {output.protgbk_dir} --prefix {wildcards.experiment}_{wildcards.barcode}_{wildcards.assembler}_prokka_protgbk_exp --force 2>&1 > {log}"
 
 
 rule prokka_gtdbtk_ref:
@@ -509,6 +509,8 @@ checkpoint update_sample_info_gtdbtk_class:
                     sflag.write(flag)
             print(f"SAMPLE_INFO for {asm} from update_sample_info_gtdbtk_class", SAMPLE_INFO)
 
+            if not os.path.exists(f"results/{exp}/medaka_{asm}_pilon3_gtdbtk_sinfo"):
+                os.mkdir(f"results/{exp}/medaka_{asm}_pilon3_gtdbtk_sinfo")
             with open(os.path.join("results", exp, f"medaka_{asm}_pilon3_gtdbtk_sinfo", "gtdbtk_sinfo_mod.json"), "w") as sinfo:
                 sinfo_mod = json.dumps(SAMPLE_INFO, indent=4)
                 sinfo.write(sinfo_mod)
@@ -643,6 +645,7 @@ rule mummer2circos_single:
     input:
         "results/{experiment}/{barcode}/medaka_{assembler}_pilon3_gtdbtk/gtdbtk.bac120.summary.tsv",
         # asm="results/{experiment}/{barcode}/medaka_{assembler}_pilon3/medaka_{assembler}_pilon3.fasta",
+        sinfo_flag="results/{experiment}/{barcode}/medaka_{assembler}_pilon3_gtdbtk_sinfo/update_sinfo_mod.flag",
         asm="results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}_pilon3/medaka_{assembler}_pilon3.oriented.fasta",
         ref=get_reference_file
     output:

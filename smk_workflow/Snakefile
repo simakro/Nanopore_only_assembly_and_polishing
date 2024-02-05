@@ -593,6 +593,7 @@ rule mummer2circos_single:
     input:
         "results/{experiment}/{barcode}/medaka_{assembler}_pilon3_gtdbtk/gtdbtk.bac120.summary.tsv",
         sinfo_flag="results/{experiment}/{barcode}/medaka_{assembler}_pilon3_gtdbtk_sinfo/update_sinfo_mod.flag",
+        dwnld_flag=expand( "results/{experiment}/medaka_{assembler}_dwnlds/download_done.flag", experiment=EXPERIMENT, assembler=ASSEMBLERS),
         asm="results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}_pilon3/medaka_{assembler}_pilon3.oriented.fasta",
         ref=get_reference_file
     output:

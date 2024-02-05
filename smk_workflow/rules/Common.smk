@@ -13,7 +13,7 @@ def get_references_path(wildcards):
 
 def get_reference_file(wildcards):
     print("Getting reference file")
-    sinfo_mod = f"results/{wildcards.experiment}/medaka_{wildcards.assembler}_pilon2_gtdbtk_sinfo/gtdbtk_sinfo_mod.json"
+    sinfo_mod = f"results/{wildcards.experiment}/medaka_{wildcards.assembler}_pilon3_gtdbtk_sinfo/gtdbtk_sinfo_mod.json"
     if os.path.exists(sinfo_mod):
         print("Updated sample_info in json format is available")
         with open(sinfo_mod, "r") as sim:
@@ -51,7 +51,7 @@ def get_fallback_ref(wildcards):
 
 
 def get_ref_proteins(wildcards):  
-    sinfo_mod = f"results/{wildcards.experiment}/medaka_{wildcards.assembler}_pilon2_gtdbtk_sinfo/gtdbtk_sinfo_mod.json"
+    sinfo_mod = f"results/{wildcards.experiment}/medaka_{wildcards.assembler}_pilon3_gtdbtk_sinfo/gtdbtk_sinfo_mod.json"
     print("sinfo_mod", sinfo_mod)
     if os.path.exists(sinfo_mod):
         print("Updated sample_info in json format exists")

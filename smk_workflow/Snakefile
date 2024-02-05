@@ -11,15 +11,19 @@ include: "rules/Common.smk"
 # EXPERIMENT = ["SM0026_bacterial_genomes_KP"]
 EXPERIMENT = "SM0026_bacterial_genomes_KP"
 BARCODES = [
-    # "barcode01",
+    "barcode01",
     "barcode02",
-    # "barcode03",
-    # "barcode04",
-    # "barcode05",
-    # "barcode06",
-    # "barcode07",
-    # "barcode08",
-    # "barcode09",
+    "barcode03",
+    "barcode04",
+    "barcode05",
+    "barcode06",
+    "barcode07",
+    "barcode08",
+    "barcode09",
+    "barcode10",
+    "barcode11",
+    "barcode12",
+    "barcode13",
     ]
 
 with open(os.path.join("data", EXPERIMENT, "Sample_Info.json")) as sinfo:
@@ -85,8 +89,8 @@ rule all:
         expand("results/{experiment}/medaka_{assembler}_dwnlds/download_done.flag", experiment=EXPERIMENT, assembler=ASSEMBLERS),
         expand("results/{experiment}/{assembler}_busco_ref/ref_busco_completion.flag", experiment=EXPERIMENT, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon3_circos/{experiment}_{barcode}_circos.svg", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
-        expand("results/{experiment}/{barcode}/assemblytics/{barcode}_medaka_{assembler}_pilon3.oriented.Assemblytics.Dotplot_filtered.png", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
-
+        # expand("results/{experiment}/{barcode}/assemblytics/{barcode}_medaka_{assembler}_pilon3.oriented.Assemblytics.Dotplot_filtered.png", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
+        expand("results/{experiment}/{barcode}/assemblytics/{barcode}_medaka_{assembler}_pilon3.oriented.coords.csv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
 
 rule preprocessing:
     input:
@@ -482,6 +486,7 @@ checkpoint update_sample_info_gtdbtk_class:
         expand("results/{experiment}/medaka_{assembler}_pilon3_gtdbtk_sinfo/gtdbtk_sinfo_mod.json", experiment=EXPERIMENT, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon3_gtdbtk_sinfo/update_sinfo_mod.flag", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
     run:
+        print("Input of update_sample_info_gtdbtk_class", input)
         print("output of update_sample_info_gtdbtk_class", output)
 
         inf_by_asm = defaultdict(list)
@@ -496,17 +501,17 @@ checkpoint update_sample_info_gtdbtk_class:
                     bc_sinfo = json.loads(inf.read())
                     for key in bc_sinfo:
                         SAMPLE_INFO[key] = bc_sinfo[key]
-                print(f"SAMPLE_INFO for {asm} from update_sample_info_gtdbtk_class", SAMPLE_INFO)
+                if_spl = in_file.split("/")
+                ofs = if_spl.index("results")
+                exp, bc, asm =  if_spl[ofs+1], if_spl[ofs+2], if_spl[ofs+3].split("_")[1]
+                flag = f"results/{exp}/{bc}/medaka_{asm}_pilon3_gtdbtk_sinfo/update_sinfo_mod.flag"
+                with open(flag, "w") as sflag:
+                    sflag.write(flag)
+            print(f"SAMPLE_INFO for {asm} from update_sample_info_gtdbtk_class", SAMPLE_INFO)
 
-            if_spl = in_file.split("/")
-            ofs = if_spl.index("results")
-            exp, bc, asm =  if_spl[ofs+1], if_spl[ofs+2], if_spl[ofs+3].split("_")[1]
             with open(os.path.join("results", exp, f"medaka_{asm}_pilon3_gtdbtk_sinfo", "gtdbtk_sinfo_mod.json"), "w") as sinfo:
                 sinfo_mod = json.dumps(SAMPLE_INFO, indent=4)
                 sinfo.write(sinfo_mod)
-            flag = f"results/{exp}/{bc}/medaka_{asm}_pilon3_gtdbtk_sinfo/update_sinfo_mod.flag"
-            with open(flag, "w") as sflag:
-                sflag.write(flag)
 
 
 checkpoint confirm_or_get_reference:
@@ -665,7 +670,8 @@ rule assemblytics:
     input:
         "results/{experiment}/{barcode}/dnadiff/medaka_{assembler}_pilon3.oriented.delta"
     output:
-        "results/{experiment}/{barcode}/assemblytics/{barcode}_medaka_{assembler}_pilon3.oriented.Assemblytics.Dotplot_filtered.png"
+        # "results/{experiment}/{barcode}/assemblytics/{barcode}_medaka_{assembler}_pilon3.oriented.Assemblytics.Dotplot_filtered.png"
+        "results/{experiment}/{barcode}/assemblytics/{barcode}_medaka_{assembler}_pilon3.oriented.coords.csv"
     params:
         output_prefix="results/{experiment}/{barcode}/assemblytics/{barcode}_medaka_{assembler}_pilon3.oriented",
         unique_anchor_length=10000,

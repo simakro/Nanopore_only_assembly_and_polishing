@@ -259,59 +259,7 @@ def parse_fastq(fastq: str, analyze=True, search_lst=False, outfile=False, outfm
     return  reads
 
 
-def optimize_cutoffs(    
-    org_reads: list,
-    selection: list,
-    target_cov: float,
-    genome_size: int,
-    req_qual: float,
-    req_len: int,
-    args: object,
-    direction=None):
-    selection = [read for read in org_reads if read.len>=req_len and read.qual>=req_qual]
-    total_bp = sum([read.len for read in selection])
-    read_num = len(selection)
-    total_cov = round(total_bp/genome_size, 1)
-    print(f"total_cov: {total_cov}, read_num: {read_num}, qual: {req_qual}, len: {req_len}")
-    if total_cov < target_cov:
-        if len(selection) < len(org_reads):
-            if not args.direction=="up":
-                if args.allow_reduction_all:
-                    args.direction = "down"
-                    print("More reads available for selection, decrementing len and qual parameters.")
-                    print(req_qual-args.qual_stepsize, req_len-args.len_stepsize)
-                    req_qual, req_len, selection = optimize_cutoffs(org_reads, selection, target_cov, genome_size, req_qual-args.qual_stepsize, req_len-args.len_stepsize, args)
-                    return req_qual, req_len, selection
-                else:
-                    print("Target coverage could not be reached with the set qual and len limits. If you want to allow downward adjustment of these parameters use the -decall/--allow_reduction_all flag.")
-                    return req_qual, req_len, selection
-            else:
-                print("Target coverage threshold was crossed during parameter optimization. Returning last good parameter set.")
-                req_qual, req_len = req_qual-args.qual_stepsize, req_len-args.len_stepsize
-                selection = [read for read in org_reads if read.len>=req_len and read.qual>=req_qual]
-                return req_qual, req_len, selection
-        else:
-            print("All reads have been selected, but target coverage could not be reached")
-            print(req_qual, req_len)
-            return req_qual, req_len, selection
-    elif total_cov > target_cov:
-        if args.direction=="down":
-            print(f"Target coverage could be reached by decreasing selection parameters to qual: {req_qual}, len: {req_len}")
-            return req_qual, req_len, selection
-        else:
-            args.direction = "up"
-            # incr_qual = optimize_selection(reads, target_cov, genome_size, req_qual+args.qual_increment, req_size)
-            # incr_len = optimize_selection(reads, target_cov, genome_size, req_qual, req_size+args.len_increment)
-            print(f"More coverage than requested ({total_cov}/{target_cov}), incrementing len and qual parameters.")
-            req_qual, req_len, selection = optimize_cutoffs(org_reads, selection, target_cov, genome_size, req_qual+args.qual_stepsize, req_len+args.len_stepsize, args)
-            # trials = [incr_qual, incr_len, incr_both]
-            return req_qual, req_len, selection
-    else:
-        print("Exactly reached target coverage")
-        return req_qual, req_len, selection
-
-
-def select_reads(
+def optimize_selection(
     reads: list,
     target_cov: float,
     genome_size: int,
@@ -326,16 +274,51 @@ def select_reads(
     selection = [read for read in reads if read.len>=req_len and read.qual>=req_qual]
     total_bp = sum([read.len for read in selection])
     read_num = len(selection)
-    total_cov = round(total_bp/genome_size, 1)
+    total_cov = total_bp/genome_size
     print(f"total_cov: {total_cov}, read_num: {read_num}, qual: {req_qual}, len: {req_len}")
+    fend = timer()
+    print(f"Runtime {optimize_selection.__name__}: {fend-fstart}")
     if args.optimize:
-        req_qual, req_len, selection = optimize_cutoffs(reads, selection, target_cov, genome_size, req_qual, req_len, args)
+        if total_cov < target_cov:
+            if len(selection) < len(reads):
+                if not args.direction=="up":
+                    if args.allow_reduction_all:
+                        args.direction = "down"
+                        print("More reads available for selection, decrementing len and qual parameters.")
+                        print(req_qual-args.qual_stepsize, req_len-args.len_stepsize)
+                        req_qual, req_len, selection = optimize_selection(reads, target_cov, genome_size, req_qual-args.qual_stepsize, req_len-args.len_stepsize, args)
+                        return req_qual, req_len, selection
+                    else:
+                        print("Target coverage could not be reached with the set qual and len limits. If you want to allow downward adjustment of these parameters use the -decall/--allow_reduction_all flag.")
+                        return req_qual, req_len, selection
+                else:
+                    print("Target coverage threshold was crossed during parameter optimization. Returning last good parameter set.")
+                    req_qual, req_len = req_qual-args.qual_stepsize, req_len-args.len_stepsize
+                    selection = [read for read in reads if read.len>=req_len and read.qual>=req_qual]
+                    return req_qual, req_len, selection
+            else:
+                print("All reads have been selected, but target coverage could not be reached")
+                print(req_qual, req_len)
+                return req_qual, req_len, selection
+        elif total_cov > target_cov:
+            if args.direction=="down":
+                print(f"Target coverage could be reached by decreasing selection parameters to qual: {req_qual}, len: {req_len}")
+                return req_qual, req_len, selection
+            else:
+                args.direction = "up"
+                # incr_qual = optimize_selection(reads, target_cov, genome_size, req_qual+args.qual_increment, req_size)
+                # incr_len = optimize_selection(reads, target_cov, genome_size, req_qual, req_size+args.len_increment)
+                print(f"More coverage than requested {total_cov}/{target_cov}, incrementing len and qual parameters.")
+                req_qual, req_len, selection = optimize_selection(reads, target_cov, genome_size, req_qual+args.qual_stepsize, req_len+args.len_stepsize, args)
+                # trials = [incr_qual, incr_len, incr_both]
+                return req_qual, req_len, selection
+        else:
+            print("Exactly reached target coverage")
+            return req_qual, req_len, selection
     else:
         print(f"Returning all reads with qual >= {req_qual} and length >= {req_len} without optimization of cutoffs.")
         print(f"total_bp: {total_bp} (~{total_cov}x cov), read_count: {read_num}.")
-    fend = timer()
-    print(f"Runtime {select_reads.__name__}: {fend-fstart}")
-    return req_qual, req_len, selection
+        return req_qual, req_len, selection
 
 
 
@@ -343,7 +326,7 @@ def run_cover_up():
     fstart = timer()
     args = get_args()
     reads = parse_fastq(args.fastq)
-    rqual, rlen, selection = select_reads(
+    rqual, rlen, selection = optimize_selection(
         reads,
         args.cov,
         args.genome_size,
@@ -361,7 +344,7 @@ def run_cover_up():
         reads_out = os.path.join(os.path.split(args.fastq)[0], file_name)
         parse_fastq(args.fastq, analyze=False, search_lst=selection, outfile=reads_out, outfmt=args.dump)
     fend = timer()
-    print(f"Total runtime: {fend-fstart}")
+    print(f"Total runtime {parse_fastq.__name__}: {fend-fstart}")
     return rqual, rlen
 
 if __name__ == "__main__":

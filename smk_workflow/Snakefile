@@ -27,7 +27,7 @@ BARCODES = [
 
 with open(os.path.join("data", EXPERIMENT, "Sample_Info.json")) as sinfo:
     SAMPLE_INFO = {k:v for k,v in json.load(sinfo).items() if k in BARCODES}
-    print("SAMPLE_INFO", SAMPLE_INFO)
+    #  print("SAMPLE_INFO", SAMPLE_INFO)
 
 with open(os.path.join("resources", "GTDBTK_classification_info.json")) as gcinfo:
     GTDB_TRANSL = json.load(gcinfo)
@@ -89,7 +89,8 @@ rule opt_read_filter:
     conda:
         "envs/python3.yaml"
     shell:
-        "python scripts/select_filter_params_by_cov_sm.py -f {input} -s {params.genSize} -c {params.cov} --dump fastq -decall 2>&1 > {log}"
+        # "python scripts/select_filter_params_by_cov_sm.py -f {input} -s {params.genSize} -c {params.cov} --dump fastq -decall 2>&1 > {log}"
+        "python scripts/select_filter_params_by_cov_sm.py -l 700 -q 9 -f {input} -s {params.genSize} -c 200 --dump fastq 2>&1 > {log}" # for plasmid assembly
 
 
 rule porechop_barcodes_and_adapters:

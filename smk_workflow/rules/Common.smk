@@ -1,37 +1,37 @@
 
 def get_references_path(wildcards):
-    print("Getting references path")
+    # print("Getting references path")
     ref_path=f"resources/{wildcards.experiment}"
     references = []
     fasta_exts = ["fa", "fna", "fasta"]
     for ext in fasta_exts:
         ext_refs=glob.glob(os.path.join(ref_path, f"*.{ext}"))
         references.extend(ext_refs)
-    print("references", references)
+    # print("references", references)
     return references
 
 
 def get_reference_file(wildcards):
-    print("Getting reference file")
+    # print("Getting reference file")
     # sinfo_mod = f"results/{wildcards.experiment}/medaka_{wildcards.assembler}_pilon3_gtdbtk_sinfo/gtdbtk_sinfo_mod.json"
     sinfo_mod = f"results/{wildcards.experiment}/{wildcards.barcode}/medaka_{wildcards.assembler}_pilon3_update-sinfo/Sample_Info_{wildcards.barcode}.json"
     if os.path.exists(sinfo_mod):
-        print("Updated sample_info in json format is available")
+        # print("Updated sample_info in json format is available")
         with open(sinfo_mod, "r") as sim:
             sinfo = json.loads(sim.read())
             try:
-                print("Trying to retrieve reference based on gtdbtk classification")
+                # print("Trying to retrieve reference based on gtdbtk classification")
                 ref_acc = sinfo[wildcards.barcode]["gtdb_ref"]
-                print("ref_acc", ref_acc)
+                # print("ref_acc", ref_acc)
                 ref_path=glob.glob(os.path.join("resources", wildcards.experiment, f"{ref_acc}_*_genomic.fna"))[0]
-                print(f"Reference file path: {ref_path}")
+                # print(f"Reference file path: {ref_path}")
             except:
-                print("reference file path could not be determined. Reverting to fallback.")
+                # print("reference file path could not be determined. Reverting to fallback.")
                 ref_name = SAMPLE_INFO[wildcards.barcode]["ref_fallback"]
                 ref_path = os.path.join("resources", wildcards.experiment, ref_name) 
     else:
-        print("Updated sample_info in json format does not yet exist")
-        print("Using fallback for the time being")
+        # print("Updated sample_info in json format does not yet exist")
+        # print("Using fallback for the time being")
         ref_name = SAMPLE_INFO[wildcards.barcode]["ref_fallback"]
         ref_path = os.path.join("resources", wildcards.experiment, ref_name)
     return ref_path
@@ -54,21 +54,21 @@ def get_fallback_ref(wildcards):
 def get_ref_proteins(wildcards):  
     # sinfo_mod = f"results/{wildcards.experiment}/medaka_{wildcards.assembler}_pilon3_gtdbtk_sinfo/gtdbtk_sinfo_mod.json"
     sinfo_mod = f"results/{wildcards.experiment}/{wildcards.barcode}/medaka_{wildcards.assembler}_pilon3_update-sinfo/Sample_Info_{wildcards.barcode}.json"
-    print("sinfo_mod", sinfo_mod)
+    # print("sinfo_mod", sinfo_mod)
     if os.path.exists(sinfo_mod):
-        print("Updated sample_info in json format exists")
+        # print("Updated sample_info in json format exists")
         with open(sinfo_mod, "r") as si_mod:
             Sample_Info_mod = json.loads(si_mod.read())
         gtdb_ref = Sample_Info_mod[wildcards.barcode]["gtdb_ref"]
         gbfl=glob.glob((os.path.join("resources", wildcards.experiment, f"{gtdb_ref}_genomic.gbff")))
         if len(gbfl)>0:
-            print("GBFF file for reference found in resources")
+            # print("GBFF file for reference found in resources")
             prot_file = gbfl[0]
         else:
-            print("No GBFF file for reference found. Using fallback.")
+            # print("No GBFF file for reference found. Using fallback.")
             prot_file = get_fallback_ref(wildcards)
     else:
-        print("Updated sample_info-json does not exist. Using fallback.")
+        # print("Updated sample_info-json does not exist. Using fallback.")
         prot_file = get_fallback_ref(wildcards)
     return prot_file
 
@@ -79,7 +79,7 @@ def get_draft_asm(wildcards):
     elif wildcards.assembler == "flye":
         return f"results/{wildcards.experiment}/{wildcards.barcode}/flye/assembly.fasta"
     else:
-        print("WARNING: No assembler in wildcards. Defaulting to canu.")
+        # print("WARNING: No assembler in wildcards. Defaulting to canu.")
         return "canu"
 
 
@@ -96,7 +96,7 @@ def get_len_filt_param(wildcards):
     with open(param_json, "r") as paraj:
         data = paraj.read()
         param_dct = json.loads(data)
-        print(param_dct.items())
+        # print(param_dct.items())
     return param_dct["len"]
 
 
@@ -105,7 +105,7 @@ def get_qual_filt_param(wildcards):
     with open(param_json, "r") as paraj:
         data = paraj.read()
         param_dct = json.loads(data)
-        print(param_dct.items())
+        # print(param_dct.items())
     return param_dct["qual"]
 
 
@@ -136,7 +136,7 @@ def get_clipped_ilmn_reads(wildcards):
 
 
 def get_genome_dwnld_files(wildcards):
-    print("Retrieving download files.")
+    # print("Retrieving download files.")
     dwnld_dir = checkpoints.confirm_or_get_reference.get(**wildcards).output.dwnl_dir
     dwnl_paths = glob.glob(os.path.join(dwnld_dir, "*.dwnld"))
     return dwnl_paths

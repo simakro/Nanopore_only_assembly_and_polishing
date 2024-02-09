@@ -1,8 +1,6 @@
 # Nanopore_only_assembly_and_polishing
 Genome assembly and polishing from (long read) Nanopore-only data; originally for HCMV (should be good for bacteria as well)
 
-
-
 # Installation
 
 ## GTDBTK
@@ -56,3 +54,16 @@ It can be downloaded by cloning the PlasFlow repository into the pkgs folder.
 To avoid stacking repo within repo, the .git folder within PlasFlow package should be removed.
 !!!It is extremely important to be careful to only delete the .git in PlasFLow and not the main workflow!!!
 Thus change dir into PlasFLow and run rm .git only there.
+
+Plasflow installation:
+conda create -n plasflow python=3.5
+conda install -c bioconda perl-bioperl perl-getopt-long
+conda install -c anaconda pandas=0.18
+clone plasflow repository
+HOW TO INSTALL TENSORFLOW BEST (remember issue with same source tree as python)
+start with path/to/repo/PlasFlow.py
+
+
+## Create DAG graph
+snakemake --dag | dot > DAG.dot
+dot -Tpng DAG.dot -o DAG2.png

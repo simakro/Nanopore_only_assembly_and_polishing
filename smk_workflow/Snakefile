@@ -27,7 +27,7 @@ BARCODES = [
 
 with open(os.path.join("data", EXPERIMENT, "Sample_Info.json")) as sinfo:
     SAMPLE_INFO = {k:v for k,v in json.load(sinfo).items() if k in BARCODES}
-    #  print("SAMPLE_INFO", SAMPLE_INFO)
+    # print("SAMPLE_INFO", SAMPLE_INFO)
 
 with open(os.path.join("resources", "GTDBTK_classification_info.json")) as gcinfo:
     GTDB_TRANSL = json.load(gcinfo)
@@ -61,6 +61,9 @@ rule all:
         expand("results/{experiment}/{assembler}_busco_ref/ref_busco_completion.flag", experiment=EXPERIMENT, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon3_circos/{experiment}_{barcode}_circos.svg", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/assemblytics/{barcode}_medaka_{assembler}_pilon3.oriented.coords.csv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
+        expand("results/{experiment}/{barcode}/fastqc_nanopore/{experiment}_{barcode}_all_sqfilt_fastqc.html", experiment=EXPERIMENT, barcode=BARCODES),
+        expand("results/{experiment}/{barcode}/nanoplot/{experiment}_{barcode}_all_sqfilt_NanoPlot-report.html", experiment=EXPERIMENT, barcode=BARCODES),
+        expand("results/{experiment}/{barcode}/assembly_stats/medaka_{assembler}_pilon3.oriented.stats.txt", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
         # expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon3_plasflow/medaka_{assembler}_pilon3_plasflow.tsv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS),
 
 rule preprocessing:
@@ -89,8 +92,9 @@ rule opt_read_filter:
     conda:
         "envs/python3.yaml"
     shell:
-        # "python scripts/select_filter_params_by_cov_sm.py -f {input} -s {params.genSize} -c {params.cov} --dump fastq -decall 2>&1 > {log}"
-        "python scripts/select_filter_params_by_cov_sm.py -l 700 -q 9 -f {input} -s {params.genSize} -c 200 --dump fastq 2>&1 > {log}" # for plasmid assembly
+        "python scripts/select_filter_params_by_cov_sm.py -f {input} -s {params.genSize} -c {params.cov} --dump fastq -decall 2>&1 > {log}"
+        # "python scripts/select_filter_params_by_cov_sm.py -l 700 -q 9 -f {input} -s {params.genSize} -c 200 False --dump fastq 2>&1 > {log}" # for plasmid assembly
+        # "python scripts/select_filter_params_by_cov_sm.py -l 700 -q 9 -f {input} -s {params.genSize} -opt False --dump fastq 2>&1 > {log}" # for plasmid assembly
 
 
 rule porechop_barcodes_and_adapters:
@@ -132,7 +136,7 @@ rule assemble_flye:
     output:
         outdir=directory("results/{experiment}/{barcode}/flye"),
         outfile="results/{experiment}/{barcode}/flye/assembly.fasta",
-        flag = "results/{experiment}/{barcode}/flye/flye.flag"
+        flag = "results/{experiment}/{barcode}/flye/flye.flag",
     params:
         genomeSize=230000,
         useGrid="False"
@@ -302,6 +306,48 @@ rule fastqc_illumina_before:
         "touch {params.outdir}/fastqc_complete.flag"
 
 
+rule fastqc_nanopore:
+    input:
+        ont_filt="results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fastq",
+        ont_raw="results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq"
+    output:
+        "results/{experiment}/{barcode}/fastqc_nanopore/{experiment}_{barcode}_all_sqfilt_fastqc.html",
+        "results/{experiment}/{barcode}/fastqc_nanopore/{experiment}_{barcode}_all_fastqc.html"
+    params:
+        outdir="results/{experiment}/{barcode}/fastqc_nanopore"
+    conda:
+        "envs/fastqc.yaml"
+    log:
+        "logs/{experiment}/{barcode}/fastqc_nanopore.log"
+    shell:
+        "mkdir -p {params.outdir} && "
+        "fastqc {input.ont_filt} -o {params.outdir} && "
+        "fastqc {input.ont_raw} -o {params.outdir} 2>&1 > {log}"
+
+
+rule nanoplot:
+    input:
+        ont_filt="results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fastq",
+        ont_raw="results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq"
+    output:
+        "results/{experiment}/{barcode}/nanoplot/{experiment}_{barcode}_all_NanoPlot-report.html",
+        "results/{experiment}/{barcode}/nanoplot/{experiment}_{barcode}_all_sqfilt_NanoPlot-report.html"
+    params:
+        outdir="results/{experiment}/{barcode}/nanoplot",
+        pf_filt="{experiment}_{barcode}_all_sqfilt_",
+        pf_raw="{experiment}_{barcode}_all_"
+    conda:
+        "envs/nanoplot.yaml"
+    threads:
+        4
+    log:
+        "logs/{experiment}/{barcode}/nanoplot.log"
+    shell:
+        "mkdir -p {params.outdir} && "
+        "NanoPlot -t {threads} --fastq {input.ont_filt} -p {params.pf_filt} -o {params.outdir} && "
+        "NanoPlot -t {threads} --fastq {input.ont_raw} -p {params.pf_raw} -o {params.outdir} 2>&1 > {log}"
+
+
 checkpoint clip_adapters_sm:
     input:
         "results/{experiment}/{barcode}/ilmn_fastqc_before/fastqc_complete.flag", # this is not required as input for fastqc, but supplies the necessary wildcards and ensures 
@@ -316,8 +362,9 @@ checkpoint clip_adapters_sm:
         "logs/{experiment}/{barcode}/ilmn_clip_sm.log"
     shell:
         "mkdir -m 777 {output} -p && "
-        "python3 scripts/identify_and_clip_ilmn_adapters_sm.py -cs 10 -a {params.adapters} -r {input.ilmn_reads} -o {output} 2>&1 >> {log} && "
-        "ls {output} | grep _clipped.fq | xargs fastqc -o {output} 2>&1 >> {log}"
+        "python3 scripts/identify_and_clip_ilmn_adapters_sm.py -cs 10 -a {params.adapters} -r {input.ilmn_reads} -o {output} 2>&1 > {log} && "
+        "cd {output} && "
+        "ls | grep _clipped.fq | xargs fastqc 2>&1 > fastqc_clip_adapters.log" #../../../../{log}" -o {output}
 
 
 rule circlator_fixstart:
@@ -333,6 +380,17 @@ rule circlator_fixstart:
         "logs/{experiment}/{barcode}/{assembly}/circlator_fixstart.log"
     shell:
         "circlator fixstart {input} {params.out_prefix} 2>&1 > {log}"
+
+
+rule assembly_stats:
+    input:
+        "results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}_pilon3/medaka_{assembler}_pilon3.oriented.fasta"
+    output:
+        "results/{experiment}/{barcode}/assembly_stats/medaka_{assembler}_pilon3.oriented.stats.txt"
+    conda:
+        "envs/python3.yaml"
+    shell:
+        "python3 scripts/assembly_statistics_4_bacterial.py {input} > {output}"
 
 
 # rule circlator_all:
@@ -386,7 +444,7 @@ rule set_gtdbtk_classification:
             data = gtdbtk_out.read().split("\n")
             keys = data[0].strip().split("\t")
             data = [l for l in data if len(l.strip())>0][1:]
-            print(f"INFO: {input} contains {len(data)} call(s)")
+            # print(f"INFO: {input} contains {len(data)} call(s)")
             for line in data:
                 data = line.strip().split("\t")
                 ddct = dict(zip(keys, data))
@@ -395,9 +453,9 @@ rule set_gtdbtk_classification:
                 class_dct = dict(
                     [call.split("__") for call in class_tree.split(";")]
                     )
-                print("class_dct", class_dct)
+                # print("class_dct", class_dct)
                 class_dct = {GTDB_TRANSL[k]:v for k,v in class_dct.items()}
-                print("class_dct", class_dct)
+                # print("class_dct", class_dct)
                 class_cats = [
                     "gtdb_species",
                     "gtdb_genus",
@@ -411,21 +469,22 @@ rule set_gtdbtk_classification:
                 for cat in class_cats:
                     try:
                         gtdbtk_call = class_dct[cat]
-                        print(f"INFO: Using {cat} as gtbdtk call category.")
-                        print(f"GTDBTK call: {class_dct[cat]}")
+                        # print(f"INFO: Using {cat} as gtbdtk call category.")
+                        # print(f"GTDBTK call: {class_dct[cat]}")
                         if cat=="gtdb_species":
                             spec_call = True
                         break
                     except:
-                        print(f"WARNING: gtdbtk did not yield a {cat} call.")
+                        pass
+                        # print(f"WARNING: gtdbtk did not yield a {cat} call.")
                 out.write(gtdbtk_call)
                 for cat in class_dct:
                     SAMPLE_INFO[wildcards.barcode][cat] = class_dct[cat]
                 SAMPLE_INFO[wildcards.barcode]["gtdb_ref"] = ddct["fastani_reference"]
-                print(f"SAMPLE_INFO: {SAMPLE_INFO}")
-                print(
-                    f"Suggested reference: {SAMPLE_INFO[wildcards.barcode]['gtdb_ref']}"
-                    )
+                # print(f"SAMPLE_INFO: {SAMPLE_INFO}")
+                # print(
+                #     f"Suggested reference: {SAMPLE_INFO[wildcards.barcode]['gtdb_ref']}"
+                #     )
                 with open(output[1], "w") as sinfo:
                     augm_sinfo = json.dumps(
                         {wildcards.barcode: SAMPLE_INFO[wildcards.barcode]},
@@ -441,8 +500,8 @@ checkpoint update_sample_info_gtdbtk_class:
         expand("results/{experiment}/medaka_{assembler}_pilon3_gtdbtk_sinfo/gtdbtk_sinfo_mod.json", experiment=EXPERIMENT, assembler=ASSEMBLERS),
         expand("results/{experiment}/{barcode}/medaka_{assembler}_pilon3_gtdbtk_sinfo/update_sinfo_mod.flag", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLERS)
     run:
-        print("Input of update_sample_info_gtdbtk_class", input)
-        print("output of update_sample_info_gtdbtk_class", output)
+        # print("Input of update_sample_info_gtdbtk_class", input)
+        # print("output of update_sample_info_gtdbtk_class", output)
 
         inf_by_asm = defaultdict(list)
         for asm in ASSEMBLERS:
@@ -462,7 +521,7 @@ checkpoint update_sample_info_gtdbtk_class:
                 flag = f"results/{exp}/{bc}/medaka_{asm}_pilon3_gtdbtk_sinfo/update_sinfo_mod.flag"
                 with open(flag, "w") as sflag:
                     sflag.write(flag)
-            print(f"SAMPLE_INFO for {asm} from update_sample_info_gtdbtk_class", SAMPLE_INFO)
+            # print(f"SAMPLE_INFO for {asm} from update_sample_info_gtdbtk_class", SAMPLE_INFO)
 
             if not os.path.exists(f"results/{exp}/medaka_{asm}_pilon3_gtdbtk_sinfo"):
                 os.mkdir(f"results/{exp}/medaka_{asm}_pilon3_gtdbtk_sinfo")
@@ -488,7 +547,7 @@ checkpoint confirm_or_get_reference:
             "r"
             ) as sinfo:
             sinfo_mod = json.load(sinfo)
-            print("sinfo_mod", sinfo_mod)
+            # print("sinfo_mod", sinfo_mod)
         dwnld = set()
         for sample in sinfo_mod:
             messages = []
@@ -499,7 +558,7 @@ checkpoint confirm_or_get_reference:
             if len(avail_ref) > 0:
                 m1 = f"Signature of best ref for {sample} assembled with {wildcards.assembler} already present in resources"
                 messages.append(m1)
-                print(m1) 
+                # print(m1) 
             corr_ext = [f.split(".")[-1] for f in avail_ref if f.split(".")[-1] in req_ext]
             ref_type = {"fna": "asm", "fasta": "asm", "fa": "asm", "faa": "prot", "gbk": "prot", "gb": "prot"}
             ref_set = {ref_type[ext] for ext in corr_ext}
@@ -509,16 +568,16 @@ checkpoint confirm_or_get_reference:
                 m2 = f"Some reference file/s is/are missing. Adding {best_ref} to download set."
                 dwnld.add(best_ref)
             messages.append(m2)
-            print(m2)
+            # print(m2)
             out_flag = open(output[0], "w")
             out_flag.close()
             with open(f"results/{EXPERIMENT}/medaka_{wildcards.assembler}_pilon3_gtdbtk_sinfo/confirm_or_get_reference.flag", "a") as flag:
                 for m in messages:
                     flag.write(f"{m}\n")
-        print("dwnld_set", dwnld)
+        # print("dwnld_set", dwnld)
         os.makedirs(f"results/{EXPERIMENT}/medaka_{wildcards.assembler}_pilon3_gtdbtk_dwnld", exist_ok=True)
         for ref in dwnld:
-            print("Writing download file for: ", ref)
+            # print("Writing download file for: ", ref)
             with open(f"results/{EXPERIMENT}/medaka_{wildcards.assembler}_pilon3_gtdbtk_dwnld/{ref}.dwnld", "w") as lst:
                 lst.write(ref)
 
@@ -594,7 +653,7 @@ rule mummer2circos_single:
     input:
         "results/{experiment}/{barcode}/medaka_{assembler}_pilon3_gtdbtk/gtdbtk.bac120.summary.tsv",
         sinfo_flag="results/{experiment}/{barcode}/medaka_{assembler}_pilon3_gtdbtk_sinfo/update_sinfo_mod.flag",
-        dwnld_flag=expand( "results/{experiment}/medaka_{assembler}_dwnlds/download_done.flag", experiment=EXPERIMENT, assembler=ASSEMBLERS),
+        dwnld_flag=expand("results/{experiment}/medaka_{assembler}_dwnlds/download_done.flag", experiment=EXPERIMENT, assembler=ASSEMBLERS),
         asm="results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}_pilon3/medaka_{assembler}_pilon3.oriented.fasta",
         ref=get_reference_file
     output:
@@ -641,3 +700,10 @@ rule assemblytics:
 # Circular plot with GC skew etc.; checked
 # Quality assessment (QUAST or similar); probably mostly covered by assemblytics
 # find a way to remove clipped illumina reads (temp() not working due to unknown name)
+# write a rule to generate assembly graphs from flye (canu also?) assembly_info.gv files using graphviz with following commands:
+    # dot {results}/{barcode}/flye/assembly_graph.gv > {results}/{barcode}/flye/{barcode}_asm_graph.dot &&
+    # dot -Tpng {results}/{barcode}/flye/{barcode}_asm_graph.dot -o {results}/{barcode}/flye/{barcode}_asm_graph.png
+# use {results}/{barcode}/flye/assembly_graph.gv as input file, which would necessitate to add it to flye output files as graph=...
+# migth also be tried with gfa file
+# alternative for graphviz could be bandage
+

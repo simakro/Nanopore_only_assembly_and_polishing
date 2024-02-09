@@ -330,6 +330,12 @@ def select_reads(
     print(f"total_cov: {total_cov}, read_num: {read_num}, qual: {req_qual}, len: {req_len}")
     if args.optimize:
         req_qual, req_len, selection = optimize_cutoffs(reads, selection, target_cov, genome_size, req_qual, req_len, args)
+        total_bp = sum([read.len for read in selection])
+        read_num = len(selection)
+        total_cov = round(total_bp/genome_size, 1)
+        print("Parameter optimization for  cutoffs completed.")
+        print(f"Returning reads with qual >= {req_qual} and length >= {req_len}.")
+        print(f"total_bp: {total_bp} (~{total_cov}x cov), read_count: {read_num}.")
     else:
         print(f"Returning all reads with qual >= {req_qual} and length >= {req_len} without optimization of cutoffs.")
         print(f"total_bp: {total_bp} (~{total_cov}x cov), read_count: {read_num}.")

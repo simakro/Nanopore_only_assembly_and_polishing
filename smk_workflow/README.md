@@ -53,3 +53,8 @@ It can be downloaded by cloning the PlasFlow repository into the pkgs folder.
 To avoid stacking repo within repo, the .git folder within PlasFlow package should be removed.
 !!!It is extremely important to be careful to only delete the .git in PlasFLow and not the main workflow!!!
 Thus change dir into PlasFLow and run rm .git only there.
+
+
+## Create DAG graph
+snakemake --dag | dot > DAG.dot
+dot -Tpng DAG.dot -o DAG2.png

@@ -2,3 +2,4 @@ channels:
   - bioconda
 dependencies:
   - fastqc
+  - python = 3.11  # added locally on osx

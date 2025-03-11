@@ -63,7 +63,17 @@ clone plasflow repository
 HOW TO INSTALL TENSORFLOW BEST (remember issue with same source tree as python)
 start with path/to/repo/PlasFlow.py
 
+# Usage
 
-## Create DAG graph
+Create the required snakefile, by copying one of the available snakefiles in smk_workflow (bacterial-hybrid-assembly / Viral-Nanopore-only) to "Snakefile".
+Put the required input data (e.g. folder full with fastq.gz) into the data folder so it has the following structure: data/{experiment}/{barcode}.
+
+For Virus-only Nanopore assembly pipeline can be started with: 
+'''sh
+snakemake --use-conda --cores 32 results/{experiment}/{barcode}/medaka_flye/consensus.fasta
+'''
+
+
+# Create DAG graph
 snakemake --dag | dot > DAG.dot
 dot -Tpng DAG.dot -o DAG2.png

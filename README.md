@@ -69,9 +69,9 @@ Create the required snakefile, by copying one of the available snakefiles in smk
 Put the required input data (e.g. folder full with fastq.gz) into the data folder so it has the following structure: data/{experiment}/{barcode}.
 
 For Virus-only Nanopore assembly pipeline can be started with: 
-'''sh
+```sh
 snakemake --use-conda --cores 32 results/{experiment}/{barcode}/medaka_flye/consensus.fasta results/{experiment}/{barcode}/medaka_canu/consensus.fasta
-'''
+```
 
 
 # Create DAG graph

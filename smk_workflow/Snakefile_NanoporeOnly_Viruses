@@ -16,7 +16,7 @@ rule filter_readlength:
     input:
         "results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq"
     params:
-        minlen="20000"
+        minlen="2000"  # It would be best if these params would be automatically determined with select_filter_params_by_cov_sm.py or from config
     output:
         "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sizefilt.fastq"
     log:
@@ -31,7 +31,7 @@ rule filter_readqual:
     input:
         "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sizefilt.fastq"
     params:
-        minqual="14"
+        minqual="10"  # It would be best if these params would be automatically determined with select_filter_params_by_cov_sm.py or from config
     output:
         "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fastq"
     log:

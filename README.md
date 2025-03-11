@@ -70,7 +70,7 @@ Put the required input data (e.g. folder full with fastq.gz) into the data folde
 
 For Virus-only Nanopore assembly pipeline can be started with: 
 '''sh
-snakemake --use-conda --cores 32 results/{experiment}/{barcode}/medaka_flye/consensus.fasta
+snakemake --use-conda --cores 32 results/{experiment}/{barcode}/medaka_flye/consensus.fasta results/{experiment}/{barcode}/medaka_canu/consensus.fasta
 '''
 
 

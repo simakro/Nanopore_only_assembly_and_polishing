@@ -1,3 +1,6 @@
+import json
+
+configfile: "config/NanoporeOnlyVirus.yaml"
 
 rule preprocessing:
     input:
@@ -12,11 +15,28 @@ rule preprocessing:
         "python scripts/preprocessing.py {input} {wildcards.experiment} {output} 2>&1 > {log}"
 
 
-rule filter_readlength:
+rule get_filter_params:
     input:
         "results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq"
     params:
-        minlen="2000"  # It would be best if these params would be automatically determined with select_filter_params_by_cov_sm.py or from config
+        # target_cov="80"
+        target_cov=config["TargetCoverage"]
+        genomeSize=config["GenomeSize"]
+    output:
+        "results/{experiment}/{barcode}/filt_params.json"
+    conda:
+        "envs/python3.yaml"
+    shell:
+        "python scripts/select_filter_params_by_cov_sm.py.py -c {params.minlen} -s {params.genomeSize} --allow_reduction_all -f {input} 2>&1 > {log}"
+    
+
+rule filter_readlength:
+    input:
+        fastq="results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq",
+        params_json="results/{experiment}/{barcode}/filt_params.json"
+    params:
+        # minlen="2000"  # It would be best if these params would be automatically determined with select_filter_params_by_cov_sm.py or from config
+        minlen= lambda wildcards, input: json.load(open(input.params_json))["len"]
     output:
         "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sizefilt.fastq"
     log:
@@ -24,14 +44,16 @@ rule filter_readlength:
     conda:
         "envs/bbmap.yaml"
     shell:
-        "bbduk.sh in={input} out={output} minlen={params.minlen} 2>&1 > {log}"
+        "bbduk.sh in={input.fastq} out={output} minlen={params.minlen} 2>&1 > {log}"
 
 
 rule filter_readqual:
     input:
-        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sizefilt.fastq"
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sizefilt.fastq",
+        params_json="results/{experiment}/{barcode}/filt_params.json"
     params:
-        minqual="10"  # It would be best if these params would be automatically determined with select_filter_params_by_cov_sm.py or from config
+        # minqual="10"  # It would be best if these params would be automatically determined with select_filter_params_by_cov_sm.py or from config
+        minqual= lambda wildcards, input: json.load(open(input.params_json))["qual"]
     output:
         "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fastq"
     log:
@@ -62,7 +84,8 @@ rule assemble_canu:
         outdir=directory("results/{experiment}/{barcode}/canu"),
         contigs="results/{experiment}/{barcode}/canu/{experiment}_{barcode}_canu.contigs.fasta"
     params:
-        genomeSize=230000,
+        # genomeSize=230000,
+        genomeSize=config["GenomeSize"],
         useGrid="False"
     # threads:
     #     16
@@ -114,7 +137,8 @@ rule assemble_flye:
         outdir=directory("results/{experiment}/{barcode}/flye"),
         outfile="results/{experiment}/{barcode}/flye/assembly.fasta"
     params:
-        genomeSize=230000,
+        # genomeSize=230000,
+        genomeSize=config["GenomeSize"]
         useGrid="False"
     threads:
         16

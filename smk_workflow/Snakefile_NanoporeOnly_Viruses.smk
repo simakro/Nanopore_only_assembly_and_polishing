@@ -29,7 +29,7 @@ rule get_filter_params:
     conda:
         "envs/python3.yaml"
     shell:
-        "python scripts/select_filter_params_by_cov_sm.py.py -c {params.target_cov} -s {params.genomeSize} --allow_reduction_all -f {input} 2>&1 > {log}"
+        "python scripts/select_filter_params_by_cov_sm.py -c {params.target_cov} -s {params.genomeSize} --allow_reduction_all -f {input} 2>&1 > {log}"
     
 
 rule filter_readlength:

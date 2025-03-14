@@ -24,6 +24,8 @@ rule get_filter_params:
         genomeSize=config["GenomeSize"]
     output:
         "results/{experiment}/{barcode}/filt_params.json"
+    log:
+        "logs/{experiment}/{barcode}/get_filter_params.log"
     conda:
         "envs/python3.yaml"
     shell:

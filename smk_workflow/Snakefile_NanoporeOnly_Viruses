@@ -27,7 +27,7 @@ rule get_filter_params:
     conda:
         "envs/python3.yaml"
     shell:
-        "python scripts/select_filter_params_by_cov_sm.py.py -c {params.minlen} -s {params.genomeSize} --allow_reduction_all -f {input} 2>&1 > {log}"
+        "python scripts/select_filter_params_by_cov_sm.py.py -c {params.target_cov} -s {params.genomeSize} --allow_reduction_all -f {input} 2>&1 > {log}"
     
 
 rule filter_readlength:
@@ -165,4 +165,11 @@ rule polish_flye_medaka:
         "envs/medaka.yaml"
     shell:
         "medaka_consensus -i {input.reads} -d {input.draft_asm} -o {output.outdir} -t {threads} 2>&1 > {log}"
+
+
+% rule generate_medaka_report:
+%     input:
+%         "results/{experiment}/{barcode}/medaka_flye/consensus.fasta"
+%     output:
+
     

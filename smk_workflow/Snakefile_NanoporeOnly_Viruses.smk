@@ -169,9 +169,9 @@ rule polish_flye_medaka:
         "medaka_consensus -i {input.reads} -d {input.draft_asm} -o {output.outdir} -t {threads} 2>&1 > {log}"
 
 
-% rule generate_medaka_report:
-%     input:
-%         "results/{experiment}/{barcode}/medaka_flye/consensus.fasta"
-%     output:
+#  rule generate_medaka_report:
+#      input:
+#          "results/{experiment}/{barcode}/medaka_flye/consensus.fasta"
+#      output:
 
     

@@ -20,7 +20,7 @@ rule get_filter_params:
         "results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq"
     params:
         # target_cov="80"
-        target_cov=config["TargetCoverage"]
+        target_cov=config["TargetCoverage"],
         genomeSize=config["GenomeSize"]
     output:
         "results/{experiment}/{barcode}/filt_params.json"
@@ -138,7 +138,7 @@ rule assemble_flye:
         outfile="results/{experiment}/{barcode}/flye/assembly.fasta"
     params:
         # genomeSize=230000,
-        genomeSize=config["GenomeSize"]
+        genomeSize=config["GenomeSize"],
         useGrid="False"
     threads:
         16

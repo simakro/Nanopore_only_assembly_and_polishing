@@ -1,4 +1,4 @@
 GenomeSize: 230000
-LongestReadsCov: 10  # not used yet
-HighQualReadsCov: 30
+LongestReadsCov: 10  
+HighQualReadsCov: 30 # not used yet => idea: select only the highest Q reads for polishing
 TargetCoverageAsm: 60

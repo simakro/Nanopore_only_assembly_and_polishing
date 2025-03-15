@@ -19,8 +19,7 @@ rule get_filter_params:
     input:
         "results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq"
     params:
-        # target_cov="80"
-        target_cov=config["TargetCoverage"],
+        target_cov=config["TargetCoverageAsm"],
         genomeSize=config["GenomeSize"]
     output:
         "results/{experiment}/{barcode}/filt_params.json"
@@ -37,7 +36,6 @@ rule filter_readlength:
         fastq="results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq",
         params_json="results/{experiment}/{barcode}/filt_params.json"
     params:
-        # minlen="2000"  # It would be best if these params would be automatically determined with select_filter_params_by_cov_sm.py or from config
         minlen= lambda wildcards, input: json.load(open(input.params_json))["len"]
     output:
         "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sizefilt.fastq"
@@ -54,7 +52,6 @@ rule filter_readqual:
         "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sizefilt.fastq",
         params_json="results/{experiment}/{barcode}/filt_params.json"
     params:
-        # minqual="10"  # It would be best if these params would be automatically determined with select_filter_params_by_cov_sm.py or from config
         minqual= lambda wildcards, input: json.load(open(input.params_json))["qual"]
     output:
         "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fastq"
@@ -66,11 +63,44 @@ rule filter_readqual:
         "bbduk.sh in={input} out={output} maq={params.minqual} 1> {log}"
 
 
+rule get_longest_reads:
+    input:
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq"
+    output:
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq.longestx"
+    params:
+        longest_cov=config["LongestReadsCov"],
+        genomeSize=config["GenomeSize"]
+    log:
+        "logs/{experiment}/{barcode}/get_longest_reads.log"
+    conda:
+        "envs/python3.yaml"
+    shell:
+        "python scripts/get_x_cov_longest_reads.py -cov {params.longest_cov} -g {params.genomeSize} -r {input} 2>&1 > {log}"
+
+
+rule inject_longest_reads_into_filtered:
+    input:
+        sqfilt="results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fastq",
+        longest="results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq.longestx"
+    output:
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.pluslong.fastq"
+    log:
+        "logs/{experiment}/{barcode}/inject_longest_reads_into_filtered.log"
+    conda:
+        "envs/python3.yaml"
+    shell:
+        "python scripts/inject_longest_reads_into_filt.py -a {input.sqfilt} -i {input.longest} 2>&1 > {log}"
+    
+    
+
 rule porechop_barcodes_and_adapters:
     input:
-        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fastq"
+        # "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fastq"
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.pluslong.fastq"
     output:
-        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta"
+        # "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta"
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.pluslong.fasta"
     log:
         "logs/{experiment}/{barcode}/porechop.log"
     conda:
@@ -81,12 +111,12 @@ rule porechop_barcodes_and_adapters:
 
 rule assemble_canu:
     input:
-        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta"
+        # "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta"
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.pluslong.fasta"
     output:
         outdir=directory("results/{experiment}/{barcode}/canu"),
         contigs="results/{experiment}/{barcode}/canu/{experiment}_{barcode}_canu.contigs.fasta"
     params:
-        # genomeSize=230000,
         genomeSize=config["GenomeSize"],
         useGrid="False"
     # threads:
@@ -134,12 +164,12 @@ rule polish_canu_medaka:
 
 rule assemble_flye:
     input:
-        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta"
+        # "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta"
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.pluslong.fasta"
     output:
         outdir=directory("results/{experiment}/{barcode}/flye"),
         outfile="results/{experiment}/{barcode}/flye/assembly.fasta"
     params:
-        # genomeSize=230000,
         genomeSize=config["GenomeSize"],
         useGrid="False"
     threads:

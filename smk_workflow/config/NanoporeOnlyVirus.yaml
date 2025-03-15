@@ -1,2 +1,4 @@
 GenomeSize: 230000
-TargetCoverage: 80
+LongestReadsCov: 10  # not used yet
+HighQualReadsCov: 30
+TargetCoverageAsm: 60

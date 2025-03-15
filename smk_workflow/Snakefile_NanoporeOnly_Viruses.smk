@@ -184,7 +184,8 @@ rule assemble_flye:
 
 rule polish_flye_medaka:
     input:
-        reads="results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta",
+        # reads="results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta",
+        reads="results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.pluslong.fasta",
         draft_asm="results/{experiment}/{barcode}/flye/assembly.fasta"
     output:
         outdir=directory("results/{experiment}/{barcode}/medaka_flye"),

@@ -50,7 +50,7 @@ rule get_filter_params:
 rule filter_readlength:
     input:
         # fastq="results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq",
-        fastq="results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost.fastq"
+        fastq="results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost.fastq",
         params_json="results/{experiment}/{barcode}/filt_params.json"
     params:
         minlen= lambda wildcards, input: json.load(open(input.params_json))["len"]
@@ -95,9 +95,6 @@ rule get_longest_reads:
         "envs/python3.yaml"
     shell:
         "python scripts/get_x_cov_longest_reads.py -cov {params.longest_cov} -g {params.genomeSize} -r {input} 2>&1 > {log}"
-
-
-
 
 
 rule inject_longest_reads_into_filtered:
@@ -242,11 +239,12 @@ rule polish_flye_medaka:
 
 rule circlator_fixstart:
     input:
-        "results/{experiment}/{barcode}/{assembly}.fasta"
+        "results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta"
     output:
-        "results/{experiment}/{barcode}/circl_fixstart/{assembly}.oriented.fasta"#,
+        # "results/{experiment}/{barcode}/circl_fixstart/{assembly}.oriented.fasta"
+        "results/{experiment}/{barcode}/medaka_{assembler}/circl_fixstart/consensus.oriented.fasta"
     params:
-        out_prefix = "results/{experiment}/{barcode}/circl_fixstart/{assembly}.oriented"
+        out_prefix = "results/{experiment}/{barcode}/medaka_{assembler}/circl_fixstart/consensus.oriented"
     conda:
         "envs/circlator.yaml"
     log:

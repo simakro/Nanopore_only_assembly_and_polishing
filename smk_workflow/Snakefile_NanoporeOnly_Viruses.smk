@@ -237,17 +237,17 @@ rule polish_flye_medaka:
 #          "results/{experiment}/{barcode}/medaka_flye/consensus.fasta"
 #      output:
 
-rule circlator_fixstart:
-    input:
-        "results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta"
-    output:
-        # "results/{experiment}/{barcode}/circl_fixstart/{assembly}.oriented.fasta"
-        "results/{experiment}/{barcode}/medaka_{assembler}/circl_fixstart/consensus.oriented.fasta"
-    params:
-        out_prefix = "results/{experiment}/{barcode}/medaka_{assembler}/circl_fixstart/consensus.oriented"
-    conda:
-        "envs/circlator.yaml"
-    log:
-        "logs/{experiment}/{barcode}/{assembly}/circlator_fixstart.log"
-    shell:
-        "circlator fixstart {input} {params.out_prefix} 2>&1 > {log}"
+# rule circlator_fixstart:
+#     input:
+#         "results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta"
+#     output:
+#         # "results/{experiment}/{barcode}/circl_fixstart/{assembly}.oriented.fasta"
+#         "results/{experiment}/{barcode}/medaka_{assembler}/circl_fixstart/consensus.oriented.fasta"
+#     params:
+#         out_prefix = "results/{experiment}/{barcode}/medaka_{assembler}/circl_fixstart/consensus.oriented"
+#     conda:
+#         "envs/circlator.yaml"
+#     log:
+#         "logs/{experiment}/{barcode}/{assembly}/circlator_fixstart.log"
+#     shell:
+#         "circlator fixstart {input} {params.out_prefix} 2>&1 > {log}"

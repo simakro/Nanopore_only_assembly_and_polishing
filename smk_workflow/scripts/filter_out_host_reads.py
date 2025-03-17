@@ -132,8 +132,18 @@ def get_mapped_readnames(map_dct: dict) -> list:
     return list(mapped_reads)
 
 
+def write_out_reads(line, inf_handle, outf_handle, write_out_ct, fastq):
+    write_out_ct += 1
+    outf_handle.write(line)
+    outf_handle.write(next(inf_handle))
+    if fastq:
+        outf_handle.write(next(inf_handle))
+        outf_handle.write(next(inf_handle))
+
+
 def extract_nonhost_reads(args, rn_lst, mode="inverse"):
-    header_ind = "@" if args.filetype == "fastq" else ">"
+    fastq = True if args.filetype == "fastq" else False
+    header_ind = "@" if fastq else ">"
     passed_ct = 0
     write_out_ct = 0
     with open(args.query, "r") as reads, open(args.output, "w") as extr:
@@ -144,14 +154,22 @@ def extract_nonhost_reads(args, rn_lst, mode="inverse"):
                     if mode == "inverse":
                         passed_ct += 1
                     else:
-                        write_out_ct += 1
-                        extr.write(line)
-                        extr.write(next(reads))
+                        write_out_reads(line, reads, extr, write_out_ct, fastq)
+                        # write_out_ct += 1
+                        # extr.write(line)
+                        # extr.write(next(reads))
+                        # if fastq:
+                        #     extr.write(next(reads))
+                        #     extr.write(next(reads))
                 else:
                     if mode == "inverse":
-                        write_out_ct += 1
-                        extr.write(line)
-                        extr.write(next(reads))
+                        write_out_reads(line, reads, extr, write_out_ct, fastq)
+                        # write_out_ct += 1
+                        # extr.write(line)
+                        # extr.write(next(reads))
+                        # if fastq:
+                        #     extr.write(next(reads))
+                        #     extr.write(next(reads))
                     else:
                         passed_ct += 1
     print(f"Wrote {write_out_ct} reads of the total of {write_out_ct + passed_ct} reads to outfile")

@@ -1,3 +1,4 @@
+from time import localtime, strftime
 import os
 import argparse
 from get_x_cov_longest_reads import readfile_stats
@@ -19,9 +20,21 @@ def get_args():
     return args
 
 
+def write_out_reads(line, inf_handle, outf_handle, write_out_ct, fastq):
+    write_out_ct += 1
+    outf_handle.write(line)
+    outf_handle.write(next(inf_handle))
+    if fastq:
+        outf_handle.write(next(inf_handle))
+        outf_handle.write(next(inf_handle))
+
+
 def extract_reads(read_file, rn_lst, filetype, mode="normal"):
+    fastq = True if filetype == "fastq" else False
     header_ind = "@" if filetype == "fastq" else ">"
     outfile = read_file + ".reinject"
+    passed_ct = 0
+    write_out_ct = 0
     with open(read_file, "r") as reads, open(outfile, "w") as extr:
         for line in reads:
             if line.startswith(header_ind):
@@ -29,16 +42,22 @@ def extract_reads(read_file, rn_lst, filetype, mode="normal"):
                 rname = ls[0]
                 if rname in rn_lst:
                     if mode == "inverse":
-                        pass
+                        passed_ct += 1
                     else:
-                        extr.write(line)
-                        extr.write(next(reads))
+                        write_out_reads(line, reads, extr, write_out_ct, fastq)
+                        # extr.write(line)
+                        # extr.write(next(reads))
                 else:
                     if mode == "inverse":
-                        extr.write(line)
-                        extr.write(next(reads))
+                        write_out_reads(line, reads, extr, write_out_ct, fastq)
+                        # extr.write(line)
+                        # extr.write(next(reads))
                     else:
-                        pass
+                        passed_ct += 1
+    print(
+        f"Extracted {write_out_ct} reads of the total of previously selected"
+        f" {write_out_ct + passed_ct} reads for reinjection."
+    )
     return outfile
 
 def reinject_long_reads(acceptor: str, select_reads: str):
@@ -51,6 +70,9 @@ def reinject_long_reads(acceptor: str, select_reads: str):
     return mod_name
 
 def main():
+    datestr = strftime("%Y-%m-%d_%H-%M-%S", localtime())
+    print(f"Starting process inject_longest_reads_into_filt at {datestr}")
+    print("Reinject previously extracted longest reads into quality filtered reads.")
     args = get_args()
     acceptor, inject = args.acceptor, args.inject
     # get dicts of readnames and lengths from fasta/qs

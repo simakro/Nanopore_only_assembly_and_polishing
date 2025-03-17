@@ -1,4 +1,4 @@
-import os
+from time import localtime, strftime
 from collections import defaultdict
 import argparse
 import subprocess
@@ -176,6 +176,8 @@ def extract_nonhost_reads(args, rn_lst, mode="inverse"):
 
 
 def main():
+    datestr = strftime("%Y-%m-%d_%H-%M-%S", localtime())
+    print(f"Starting process filter_out_host_reads at {datestr}")
     print("Mapping reads against host genome to filter out host reads.")
     args: object = get_args()
     out_paf: str = minimap_subprocess(args)

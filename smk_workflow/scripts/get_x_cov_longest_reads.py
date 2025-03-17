@@ -1,7 +1,6 @@
-import random
+from time import localtime, strftime
 import argparse
 import sys
-import os
 import statistics as stat
 import math
 
@@ -160,26 +159,46 @@ def get_x_longest(read_dict, args, logfile):
     return rn_lst
 
 
+def write_out_reads(line, inf_handle, outf_handle, write_out_ct, fastq):
+    write_out_ct += 1
+    outf_handle.write(line)
+    outf_handle.write(next(inf_handle))
+    if fastq:
+        outf_handle.write(next(inf_handle))
+        outf_handle.write(next(inf_handle))
+
+
 def parse_read_file(read_file, rn_lst, filetype, mode="normal"):
+    fastq = True if filetype == "fastq" else False
     header_ind = "@" if filetype == "fastq" else ">"
+    passed_ct = 0
+    write_out_ct = 0
     with open(read_file, "r") as reads, open(read_file + ".longestx", "w") as extr:
         for line in reads:
             if line.startswith(header_ind):
                 if line in rn_lst:
                     if mode == "inverse":
-                        pass
+                        passed_ct += 1
                     else:
-                        extr.write(line)
-                        extr.write(next(reads))
+                        write_out_reads(line, reads, extr, write_out_ct, fastq)
+                        # extr.write(line)
+                        # extr.write(next(reads))
                 else:
                     if mode == "inverse":
-                        extr.write(line)
-                        extr.write(next(reads))
+                        write_out_reads(line, reads, extr, write_out_ct, fastq)
+                        # extr.write(line)
+                        # extr.write(next(reads))
                     else:
-                        pass
+                        passed_ct += 1
+    print(
+        f"Wrote {write_out_ct} reads of the total of {write_out_ct + passed_ct} reads to outfile"
+    )
 
 
 def main():
+    datestr = strftime("%Y-%m-%d_%H-%M-%S", localtime())
+    print(f"Starting process get_x_cov_longest_reads at {datestr}")
+    print("Getting longest reads up to x-times coverage of expected assembly size.")
     args = get_args()
     read_dict, file_format, log_file = readfile_stats(args.read_file)
     read_name_lst = get_x_longest(read_dict, args, log_file)

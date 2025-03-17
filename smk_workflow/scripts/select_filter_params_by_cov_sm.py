@@ -1,7 +1,12 @@
+# from Nanopore_only_assembly_and_polishing
+# this script/tool would benefit from a better fastq-file integrity check
+# as is, fastq files lacking + and qstring are not recognized as corrupted,
+# but judged to be empty
+
 import os
 import sys
 from time import perf_counter as timer
-from timeit import timeit
+# from timeit import timeit
 import statistics as stat
 import json
 import argparse
@@ -80,7 +85,6 @@ def get_args():
     return args
 
 
-
 # def parse_and_analyze_fastq_org(fastq):
 #     fstart = timer()
 #     bases = ["A", "T", "G", "C"]
@@ -121,7 +125,7 @@ def get_args():
 #                     end_baseq[-(n+1)].append(lq[-(n+1)])
 #                 mean_qs = stat.mean(lq)
 #                 av_read_quality.append(mean_qs)
-                
+
 #     av_quality_reads = stat.mean(av_read_quality)
 #     sd_qual_reads = stat.stdev(av_read_quality)
 
@@ -344,7 +348,6 @@ def select_reads(
     return req_qual, req_len, selection
 
 
-
 def run_cover_up():
     fstart = timer()
     args = get_args()
@@ -372,4 +375,3 @@ def run_cover_up():
 
 if __name__ == "__main__":
     rqual, rlen = run_cover_up()
-    

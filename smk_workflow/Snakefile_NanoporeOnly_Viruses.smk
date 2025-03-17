@@ -118,7 +118,7 @@ rule porechop_barcodes_and_adapters:
         "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.pluslong.fastq"
     output:
         # "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta"
-        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.pluslong.fasta.ml"
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.pluslong.fasta"
     log:
         "logs/{experiment}/{barcode}/porechop.log"
     conda:

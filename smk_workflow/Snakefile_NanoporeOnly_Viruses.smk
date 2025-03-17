@@ -82,8 +82,11 @@ rule filter_readqual:
 
 rule get_longest_reads:
     input:
-        # "results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq" # use non-host
-        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost.fastq"
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost.fastq",
+        # the below is added here only to prevent this rule from running in parallel with 
+        # get_filter_params, because both scripts access the same file and use next()
+        # which causes errors/race conditions in both processes
+        "results/{experiment}/{barcode}/filt_params.json" 
     output:
         "results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq.longestx"
     params:

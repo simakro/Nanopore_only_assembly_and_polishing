@@ -242,12 +242,12 @@ rule circlator_fixstart:
         "results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta"
     output:
         # "results/{experiment}/{barcode}/circl_fixstart/{assembly}.oriented.fasta"
-        "results/{experiment}/{barcode}/medaka_{assembler}/circl_fixstart/consensus.oriented.fasta"
+        "results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}/consensus.oriented.fasta"
     params:
         out_prefix = "results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}/consensus.oriented"
     conda:
         "envs/circlator.yaml"
     log:
-        "logs/{experiment}/{barcode}/medaka_{assembler}/circlator_fixstart.log"
+        "logs/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}/circlator_fixstart.log"
     shell:
         "circlator fixstart {input} {params.out_prefix} 2>&1 > {log}"

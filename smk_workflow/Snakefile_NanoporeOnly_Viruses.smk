@@ -15,9 +15,25 @@ rule preprocessing:
         "python scripts/preprocessing.py {input} {wildcards.experiment} {output} 2>&1 > {log}"
 
 
-rule get_filter_params:
+rule filter_out_host_reads: # design in such a way, that if the assembly is from a pure culture an empty mock genome can be used, so nothing will be filtered
     input:
         "results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq"
+    output:
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost.fastq"
+    params:
+        host_gen_ref=config["HostRefGenome"]
+    log:
+        "logs/{experiment}/{barcode}/filter_out_host_reads.log"
+    conda:
+        "envs/minimap2.yaml"
+    shell:
+        "python scripts/filter_out_host_reads.py -q {input} -hgr {params.host_gen_ref} -o {output} 2>&1 > {log}"
+
+
+rule get_filter_params:
+    input:
+        # "results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq"
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost.fastq"
     params:
         target_cov=config["TargetCoverageAsm"],
         genomeSize=config["GenomeSize"]
@@ -33,7 +49,8 @@ rule get_filter_params:
 
 rule filter_readlength:
     input:
-        fastq="results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq",
+        # fastq="results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq",
+        fastq="results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost.fastq"
         params_json="results/{experiment}/{barcode}/filt_params.json"
     params:
         minlen= lambda wildcards, input: json.load(open(input.params_json))["len"]
@@ -65,7 +82,8 @@ rule filter_readqual:
 
 rule get_longest_reads:
     input:
-        "results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq"
+        # "results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq" # use non-host
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost.fastq"
     output:
         "results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq.longestx"
     params:
@@ -77,6 +95,9 @@ rule get_longest_reads:
         "envs/python3.yaml"
     shell:
         "python scripts/get_x_cov_longest_reads.py -cov {params.longest_cov} -g {params.genomeSize} -r {input} 2>&1 > {log}"
+
+
+
 
 
 rule inject_longest_reads_into_filtered:
@@ -100,7 +121,21 @@ rule porechop_barcodes_and_adapters:
         "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.pluslong.fastq"
     output:
         # "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta"
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.pluslong.fasta.ml"
+    log:
+        "logs/{experiment}/{barcode}/porechop.log"
+    conda:
+        "envs/porechop.yaml"
+    shell:
+        "porechop -i {input} -o {output} 2>&1 > {log}"
+
+
+rule convert_multiline_fasta:
+    input:
         "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.pluslong.fasta"
+    output:
+        # "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta"
+        
     log:
         "logs/{experiment}/{barcode}/porechop.log"
     conda:
@@ -205,4 +240,16 @@ rule polish_flye_medaka:
 #          "results/{experiment}/{barcode}/medaka_flye/consensus.fasta"
 #      output:
 
-    
+rule circlator_fixstart:
+    input:
+        "results/{experiment}/{barcode}/{assembly}.fasta"
+    output:
+        "results/{experiment}/{barcode}/circl_fixstart/{assembly}.oriented.fasta"#,
+    params:
+        out_prefix = "results/{experiment}/{barcode}/circl_fixstart/{assembly}.oriented"
+    conda:
+        "envs/circlator.yaml"
+    log:
+        "logs/{experiment}/{barcode}/{assembly}/circlator_fixstart.log"
+    shell:
+        "circlator fixstart {input} {params.out_prefix} 2>&1 > {log}"

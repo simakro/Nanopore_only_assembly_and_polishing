@@ -2,3 +2,4 @@ GenomeSize: 230000
 LongestReadsCov: 10  
 HighQualReadsCov: 30 # not used yet => idea: select only the highest Q reads for polishing
 TargetCoverageAsm: 60
+HostRefGenome: resources/empty_mock_reference.fa # Default = resources/empty_mock_reference.fa

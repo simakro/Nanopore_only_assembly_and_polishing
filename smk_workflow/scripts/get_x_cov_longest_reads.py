@@ -169,7 +169,7 @@ class ReadExtractor:
         filetype: str = "fastq",  # "fasta"
     ):
         self.mode = mode  # "normal" or "inverse"
-        self.in_readfile: str = args.query
+        self.in_readfile: str = args.read_file
         self.outfile: str = args.output
         self.read_names: list = read_names
         self.filetype: str = filetype

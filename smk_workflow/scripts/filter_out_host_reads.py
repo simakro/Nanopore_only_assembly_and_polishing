@@ -81,12 +81,7 @@ def get_args():
         help="Type of nucl. acid sequence file (fasta/fastq) Default='fastq'",
     )
     args = parser.parse_args()
-    # args.logfile = get_log_name(args)
     return args
-
-
-# def get_log_name(args: object) -> str:
-#     pass
 
 
 def minimap_subprocess(
@@ -124,47 +119,10 @@ def load_paf(paf: str) -> dict:
 
 def get_mapped_readnames(map_dct: dict) -> list:
     mapped_reads = set()
-    # with open(read_lst, "w", encoding="utf-8") as rel:
     for rname in map_dct:
         mapped_reads.add(rname)
-    # print("mapped_reads", mapped_reads)
     print(f"Filtering out {len(mapped_reads)} reads mapping to host reference.")
     return list(mapped_reads)
-
-
-# def write_out_reads(line, l_ct, inf_handle, outf_handle, write_out_ct, fastq):
-#     write_out_ct += 1
-#     l_ct += 1
-#     outf_handle.write(line)
-#     outf_handle.write(next(inf_handle))
-#     if fastq:
-#         l_ct += 2
-#         outf_handle.write(next(inf_handle))
-#         outf_handle.write(next(inf_handle))
-
-
-# def extract_nonhost_reads(args, rn_lst, mode="inverse"):
-#     fastq = True if args.filetype == "fastq" else False
-#     header_ind = "@" if fastq else ">"
-#     l_ct = 0
-#     passed_ct = 0
-#     write_out_ct = 0
-#     with open(args.query, "r") as reads, open(args.output, "w") as extr:
-#         for line in reads:
-#             l_ct += 1
-#             if line.startswith(header_ind) and l_ct % 2 == 1:
-#                 identifier = line.strip().split(" ")[0][1:]
-#                 if identifier in rn_lst:
-#                     if mode == "inverse":
-#                         passed_ct += 1
-#                     else:
-#                         write_out_reads(line, l_ct, reads, extr, write_out_ct, fastq)
-#                 else:
-#                     if mode == "inverse":
-#                         write_out_reads(line, l_ct, reads, extr, write_out_ct, fastq)
-#                     else:
-#                         passed_ct += 1
-#     print(f"Wrote {write_out_ct} reads of the total of {write_out_ct + passed_ct} reads to outfile")
 
 
 class ReadExtractor:
@@ -192,14 +150,11 @@ class ReadExtractor:
 
     def write_out_reads(self, line):
         self.write_out_ct += 1
-        # print(f"write_out_reads for line {self.l_ct}")
         self.l_ct += 1
-        # print(f"incremented l_ct for seq-line to {self.l_ct}")
         self.extr.write(line)
         self.extr.write(next(self.reads))
         if self.fastq:
             self.l_ct += 2
-            # print(f"incremented l_ct for plus- and q-line to {self.l_ct}")
             self.extr.write(next(self.reads))
             self.extr.write(next(self.reads))
 
@@ -209,11 +164,6 @@ class ReadExtractor:
         ) as self.extr:
             for line in self.reads:
                 self.l_ct += 1
-                # print(self.l_ct)
-                # print(line[:80])
-                # if self.l_ct > 100:
-                #     import sys
-                #     sys.exit()
                 if line.startswith(self.header_ind) and self.l_ct % 2 == 1:
                     identifier = line.strip().split(" ")[0][1:]
                     if identifier in self.read_names:
@@ -241,7 +191,6 @@ def main():
     map_dct: dict = load_paf(out_paf)
     read_names: list = get_mapped_readnames(map_dct)
     ReadExtractor(args, read_names, mode="inverse", filetype=args.filetype)
-    # extract_nonhost_reads(args, read_names, mode="inverse")
 
 
 if __name__ == "__main__":

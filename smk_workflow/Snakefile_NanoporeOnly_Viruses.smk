@@ -55,7 +55,7 @@ rule filter_readlength:
     params:
         minlen= lambda wildcards, input: json.load(open(input.params_json))["len"]
     output:
-        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sizefilt.fastq"
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost_sizefilt.fastq"
     log:
         "logs/{experiment}/{barcode}/size_filter.log"
     conda:
@@ -66,12 +66,12 @@ rule filter_readlength:
 
 rule filter_readqual:
     input:
-        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sizefilt.fastq",
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all__nonhost_sizefilt.fastq",
         params_json="results/{experiment}/{barcode}/filt_params.json"
     params:
         minqual= lambda wildcards, input: json.load(open(input.params_json))["qual"]
     output:
-        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fastq"
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost_sqfilt.fastq"
     log:
         "logs/{experiment}/{barcode}/qual_filter.log"
     conda:
@@ -88,7 +88,7 @@ rule get_longest_reads:
         # which causes errors/race conditions in both processes
         start_flag="results/{experiment}/{barcode}/filt_params.json" 
     output:
-        "results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq.longestx"
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost.fastq.longestx"
     params:
         longest_cov=config["LongestReadsCov"],
         genomeSize=config["GenomeSize"]
@@ -102,10 +102,10 @@ rule get_longest_reads:
 
 rule inject_longest_reads_into_filtered:
     input:
-        sqfilt="results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fastq",
-        longest="results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq.longestx"
+        sqfilt="results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost_sqfilt.fastq",
+        longest="results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost.fastq.longestx"
     output:
-        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.pluslong.fastq"
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost_sqfilt.pluslong.fastq"
     log:
         "logs/{experiment}/{barcode}/inject_longest_reads_into_filtered.log"
     conda:
@@ -118,10 +118,10 @@ rule inject_longest_reads_into_filtered:
 rule porechop_barcodes_and_adapters:
     input:
         # "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fastq"
-        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.pluslong.fastq"
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost_sqfilt.pluslong.fastq"
     output:
         # "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta"
-        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.pluslong.fasta"
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost_sqfilt.pluslong.fasta"
     log:
         "logs/{experiment}/{barcode}/porechop.log"
     conda:
@@ -130,24 +130,18 @@ rule porechop_barcodes_and_adapters:
         "porechop -i {input} -o {output} 2>&1 > {log}"
 
 
-rule convert_multiline_fasta:
-    input:
-        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.pluslong.fasta"
-    output:
-        # "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta"
-        
-    log:
-        "logs/{experiment}/{barcode}/porechop.log"
-    conda:
-        "envs/porechop.yaml"
-    shell:
-        "porechop -i {input} -o {output} 2>&1 > {log}"
+# rule convert_multiline_fasta:
+#     input:
+#         "results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost_sqfilt.pluslong.fasta"
+#     output:
+#         # "results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost_sqfilt.fasta"   
+
 
 
 rule assemble_canu:
     input:
         # "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta"
-        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.pluslong.fasta"
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost_sqfilt.pluslong.fasta"
     output:
         outdir=directory("results/{experiment}/{barcode}/canu"),
         contigs="results/{experiment}/{barcode}/canu/{experiment}_{barcode}_canu.contigs.fasta"
@@ -166,7 +160,7 @@ rule assemble_canu:
 
 # rule polish_canu_nextpolish:
 #     input:
-#         reads="results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta",
+#         reads="results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost_sqfilt.fasta",
 #         draft_asm="results/{experiment}/{barcode}/canu/{experiment}_{barcode}_canu.contigs.fasta"
 #     output:
 #         outdir=directory("results/{experiment}/{barcode}/medaka_canu"),
@@ -183,7 +177,7 @@ rule assemble_canu:
 
 rule polish_canu_medaka:
     input:
-        reads="results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta",
+        reads="results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost_sqfilt.fasta",
         draft_asm="results/{experiment}/{barcode}/canu/{experiment}_{barcode}_canu.contigs.fasta"
     output:
         outdir=directory("results/{experiment}/{barcode}/medaka_canu"),
@@ -200,7 +194,7 @@ rule polish_canu_medaka:
 rule assemble_flye:
     input:
         # "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta"
-        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.pluslong.fasta"
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost_sqfilt.pluslong.fasta"
     output:
         outdir=directory("results/{experiment}/{barcode}/flye"),
         outfile="results/{experiment}/{barcode}/flye/assembly.fasta"
@@ -220,7 +214,7 @@ rule assemble_flye:
 rule polish_flye_medaka:
     input:
         # reads="results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta",
-        reads="results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.pluslong.fasta",
+        reads="results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost_sqfilt.pluslong.fasta",
         draft_asm="results/{experiment}/{barcode}/flye/assembly.fasta"
     output:
         outdir=directory("results/{experiment}/{barcode}/medaka_flye"),

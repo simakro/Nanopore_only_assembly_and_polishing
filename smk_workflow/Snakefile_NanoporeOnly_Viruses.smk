@@ -66,7 +66,7 @@ rule filter_readlength:
 
 rule filter_readqual:
     input:
-        "results/{experiment}/{barcode}/{experiment}_{barcode}_all__nonhost_sizefilt.fastq",
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost_sizefilt.fastq",
         params_json="results/{experiment}/{barcode}/filt_params.json"
     params:
         minqual= lambda wildcards, input: json.load(open(input.params_json))["qual"]

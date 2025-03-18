@@ -1,6 +1,17 @@
 import json
 
+
 configfile: "config/NanoporeOnlyVirus.yaml"
+
+EXPERIMENT = config["Experiment"]
+BARCODES = config["Barcodes"]
+ASSEMBLER = config["Assembler"]
+
+
+rule all:
+    input:
+        expand("results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}/consensus.oriented.fasta", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLER)
+
 
 rule preprocessing:
     input:
@@ -204,7 +215,7 @@ rule assemble_flye:
     threads:
         16
     log:
-        "logs/{experiment}/{barcode}/canu.log"
+        "logs/{experiment}/{barcode}/flye.log"
     conda:
         "envs/flye.yaml"
     shell:

@@ -20,11 +20,13 @@ def get_args():
     return args
 
 
-def write_out_reads(line, inf_handle, outf_handle, write_out_ct, fastq):
+def write_out_reads(line, l_ct, inf_handle, outf_handle, write_out_ct, fastq):
     write_out_ct += 1
+    l_ct += 1
     outf_handle.write(line)
     outf_handle.write(next(inf_handle))
     if fastq:
+        l_ct += 2
         outf_handle.write(next(inf_handle))
         outf_handle.write(next(inf_handle))
 
@@ -46,12 +48,12 @@ def extract_reads(read_file, rn_lst, filetype, mode="normal"):
                     if mode == "inverse":
                         passed_ct += 1
                     else:
-                        write_out_reads(line, reads, extr, write_out_ct, fastq)
+                        write_out_reads(line, l_ct, reads, extr, write_out_ct, fastq)
                         # extr.write(line)
                         # extr.write(next(reads))
                 else:
                     if mode == "inverse":
-                        write_out_reads(line, reads, extr, write_out_ct, fastq)
+                        write_out_reads(line, l_ct, reads, extr, write_out_ct, fastq)
                         # extr.write(line)
                         # extr.write(next(reads))
                     else:

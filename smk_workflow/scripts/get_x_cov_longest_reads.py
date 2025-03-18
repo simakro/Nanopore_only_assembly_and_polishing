@@ -159,44 +159,109 @@ def get_x_longest(read_dict, args, logfile):
     return rn_lst
 
 
-def write_out_reads(line, l_ct, inf_handle, outf_handle, write_out_ct, fastq):
-    write_out_ct += 1
-    l_ct += 1
-    outf_handle.write(line)
-    outf_handle.write(next(inf_handle))
-    if fastq:
-        l_ct += 2
-        outf_handle.write(next(inf_handle))
-        outf_handle.write(next(inf_handle))
+class ReadExtractor:
+
+    def __init__(
+        self,
+        args: object,
+        read_names: list,
+        mode: str = "normal",
+        filetype: str = "fastq",  # "fasta"
+    ):
+        self.mode = mode  # "normal" or "inverse"
+        self.in_readfile: str = args.query
+        self.outfile: str = args.output
+        self.read_names: list = read_names
+        self.filetype: str = filetype
+        self.fastq = True if self.filetype == "fastq" else False
+        self.header_ind = "@" if self.fastq else ">"
+        self.l_ct = 0
+        self.passed_ct = 0
+        self.write_out_ct = 0
+        self.reads = None
+        self.extr = None
+        self.extract_nonhost_reads()
+
+    def write_out_reads(self, line):
+        self.write_out_ct += 1
+        # print(f"write_out_reads for line {self.l_ct}")
+        self.l_ct += 1
+        # print(f"incremented l_ct for seq-line to {self.l_ct}")
+        self.extr.write(line)
+        self.extr.write(next(self.reads))
+        if self.fastq:
+            self.l_ct += 2
+            # print(f"incremented l_ct for plus- and q-line to {self.l_ct}")
+            self.extr.write(next(self.reads))
+            self.extr.write(next(self.reads))
+
+    def extract_nonhost_reads(self):
+        with open(self.in_readfile, "r") as self.reads, open(
+            self.outfile, "w"
+        ) as self.extr:
+            for line in self.reads:
+                self.l_ct += 1
+                # print(self.l_ct)
+                # print(line[:80])
+                # if self.l_ct > 100:
+                #     import sys
+                #     sys.exit()
+                if line.startswith(self.header_ind) and self.l_ct % 2 == 1:
+                    identifier = line.strip().split(" ")[0][1:]
+                    if identifier in self.read_names:
+                        if self.mode == "inverse":
+                            self.passed_ct += 1
+                        else:
+                            self.write_out_reads(line)
+                    else:
+                        if self.mode == "inverse":
+                            self.write_out_reads(line)
+                        else:
+                            self.passed_ct += 1
+        written_out = self.write_out_ct if self.mode == "normal" else self.passed_ct
+        print(
+            f"Wrote {written_out} reads of the total of {self.write_out_ct + self.passed_ct} reads to outfile"
+        )
 
 
-def parse_read_file(read_file, rn_lst, filetype, mode="normal"):
-    fastq = True if filetype == "fastq" else False
-    header_ind = "@" if filetype == "fastq" else ">"
-    l_ct = 0
-    passed_ct = 0
-    write_out_ct = 0
-    with open(read_file, "r") as reads, open(read_file + ".longestx", "w") as extr:
-        for line in reads:
-            l_ct += 1
-            if line.startswith(header_ind) and l_ct % 2 == 1:
-                if line in rn_lst:
-                    if mode == "inverse":
-                        passed_ct += 1
-                    else:
-                        write_out_reads(line, l_ct, reads, extr, write_out_ct, fastq)
-                        # extr.write(line)
-                        # extr.write(next(reads))
-                else:
-                    if mode == "inverse":
-                        write_out_reads(line, l_ct, reads, extr, write_out_ct, fastq)
-                        # extr.write(line)
-                        # extr.write(next(reads))
-                    else:
-                        passed_ct += 1
-    print(
-        f"Wrote {write_out_ct} reads of the total of {write_out_ct + passed_ct} reads to outfile"
-    )
+# def write_out_reads(line, l_ct, inf_handle, outf_handle, write_out_ct, fastq):
+#     write_out_ct += 1
+#     l_ct += 1
+#     outf_handle.write(line)
+#     outf_handle.write(next(inf_handle))
+#     if fastq:
+#         l_ct += 2
+#         outf_handle.write(next(inf_handle))
+#         outf_handle.write(next(inf_handle))
+
+
+# def parse_read_file(read_file, rn_lst, filetype, mode="normal"):
+#     fastq = True if filetype == "fastq" else False
+#     header_ind = "@" if filetype == "fastq" else ">"
+#     l_ct = 0
+#     passed_ct = 0
+#     write_out_ct = 0
+#     with open(read_file, "r") as reads, open(read_file + ".longestx", "w") as extr:
+#         for line in reads:
+#             l_ct += 1
+#             if line.startswith(header_ind) and l_ct % 2 == 1:
+#                 if line in rn_lst:
+#                     if mode == "inverse":
+#                         passed_ct += 1
+#                     else:
+#                         write_out_reads(line, l_ct, reads, extr, write_out_ct, fastq)
+#                         # extr.write(line)
+#                         # extr.write(next(reads))
+#                 else:
+#                     if mode == "inverse":
+#                         write_out_reads(line, l_ct, reads, extr, write_out_ct, fastq)
+#                         # extr.write(line)
+#                         # extr.write(next(reads))
+#                     else:
+#                         passed_ct += 1
+#     print(
+#         f"Wrote {write_out_ct} reads of the total of {write_out_ct + passed_ct} reads to outfile"
+#     )
 
 
 def main():
@@ -206,7 +271,8 @@ def main():
     args = get_args()
     read_dict, file_format, log_file = readfile_stats(args.read_file)
     read_name_lst = get_x_longest(read_dict, args, log_file)
-    parse_read_file(args.read_file, read_name_lst, file_format, mode=args.mode)
+    ReadExtractor(args, read_name_lst, mode="normal", filetype=file_format)
+    # parse_read_file(args.read_file, read_name_lst, file_format, mode=args.mode)
 
 
 if __name__ == "__main__":

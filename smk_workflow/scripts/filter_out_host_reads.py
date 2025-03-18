@@ -144,11 +144,13 @@ def write_out_reads(line, inf_handle, outf_handle, write_out_ct, fastq):
 def extract_nonhost_reads(args, rn_lst, mode="inverse"):
     fastq = True if args.filetype == "fastq" else False
     header_ind = "@" if fastq else ">"
+    l_ct = 0
     passed_ct = 0
     write_out_ct = 0
     with open(args.query, "r") as reads, open(args.output, "w") as extr:
         for line in reads:
-            if line.startswith(header_ind):
+            l_ct += 1
+            if line.startswith(header_ind) and l_ct % 2 == 1:
                 identifier = line.strip().split(" ")[0][1:]
                 if identifier in rn_lst:
                     if mode == "inverse":

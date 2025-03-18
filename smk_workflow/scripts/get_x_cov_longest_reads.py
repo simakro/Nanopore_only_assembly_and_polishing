@@ -171,11 +171,13 @@ def write_out_reads(line, inf_handle, outf_handle, write_out_ct, fastq):
 def parse_read_file(read_file, rn_lst, filetype, mode="normal"):
     fastq = True if filetype == "fastq" else False
     header_ind = "@" if filetype == "fastq" else ">"
+    l_ct = 0
     passed_ct = 0
     write_out_ct = 0
     with open(read_file, "r") as reads, open(read_file + ".longestx", "w") as extr:
         for line in reads:
-            if line.startswith(header_ind):
+            l_ct += 1
+            if line.startswith(header_ind) and l_ct % 2 == 1:
                 if line in rn_lst:
                     if mode == "inverse":
                         passed_ct += 1

@@ -33,11 +33,13 @@ def extract_reads(read_file, rn_lst, filetype, mode="normal"):
     fastq = True if filetype == "fastq" else False
     header_ind = "@" if filetype == "fastq" else ">"
     outfile = read_file + ".reinject"
+    l_ct = 0
     passed_ct = 0
     write_out_ct = 0
     with open(read_file, "r") as reads, open(outfile, "w") as extr:
         for line in reads:
-            if line.startswith(header_ind):
+            l_ct += 1
+            if line.startswith(header_ind) and l_ct % 2 == 1:
                 ls = line.strip().split(header_ind)[1].split(" ")
                 rname = ls[0]
                 if rname in rn_lst:

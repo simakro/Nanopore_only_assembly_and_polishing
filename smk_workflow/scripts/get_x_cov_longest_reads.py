@@ -74,7 +74,8 @@ def readfile_stats(readfile):
             else:
                 if "fasta" in fformat:
                     seq = seq + line.strip()
-        longest = max(readlen)
+        print("readlens", readlen)
+        longest = max(readlen) if len(readlen) else 0
         print("longest", longest)
         longest_read = {k: v for (k, v) in read_dict.items() if v == longest}
         print("longest_read", longest_read)

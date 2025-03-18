@@ -157,6 +157,7 @@ def get_x_longest(read_dict, args, logfile):
         report_reads_to_extract(x_longest, len_ct, log_file=None)
         report_reads_to_extract(x_longest, len_ct, log_file=logfile)
     rn_lst = [rt[0] for rt in x_longest]
+    print(f"Get longest reads read name list: {rn_lst}")
     return rn_lst
 
 

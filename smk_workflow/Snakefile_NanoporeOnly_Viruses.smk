@@ -82,11 +82,11 @@ rule filter_readqual:
 
 rule get_longest_reads:
     input:
-        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost.fastq",
+        reads="results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost.fastq",
         # the below is added here only to prevent this rule from running in parallel with 
         # get_filter_params, because both scripts access the same file and use next()
         # which causes errors/race conditions in both processes
-        "results/{experiment}/{barcode}/filt_params.json" 
+        start_flag="results/{experiment}/{barcode}/filt_params.json" 
     output:
         "results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq.longestx"
     params:
@@ -97,7 +97,7 @@ rule get_longest_reads:
     conda:
         "envs/python3.yaml"
     shell:
-        "python scripts/get_x_cov_longest_reads.py -cov {params.longest_cov} -g {params.genomeSize} -r {input} 2>&1 > {log}"
+        "python scripts/get_x_cov_longest_reads.py -cov {params.longest_cov} -g {params.genomeSize} -r {input.reads} 2>&1 > {log}"
 
 
 rule inject_longest_reads_into_filtered:

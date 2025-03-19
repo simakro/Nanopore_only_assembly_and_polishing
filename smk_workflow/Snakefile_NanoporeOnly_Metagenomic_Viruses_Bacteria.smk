@@ -284,3 +284,4 @@ rule busco:
         "busco -i {input} -o {params.out} -m genome --auto-lineage --cpu 16 2>&1 > {log}"
         # "busco -i metagenome.fasta -m genome -l bacteria_odb12,viruses_odb12 --cpu 16"
     
+# maybe add rule for creation of busco reports either like in big bacterial workflow or using buscomp tool for compilation of busco results

@@ -11,6 +11,7 @@ ASSEMBLER = config["Assembler"]
 rule all:
     input:
         expand("results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}/consensus.oriented.fasta", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLER)
+        expand("results/{experiment}/{barcode}/medaka_{assembler}/busco/logs/busco.log", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLER)
 
 
 rule preprocessing:

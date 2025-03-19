@@ -272,10 +272,10 @@ rule busco:
         "results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta"
     output:
         # "results/{experiment}/{barcode}/medaka_{assembler}/"
-        "results/{experiment}/{barcode}/medaka_{assembler}/busco/logs/busco.log"
+        "results/{experiment}/{barcode}/busco/medaka_{assembler}/logs/busco.log"
     params:
         # out="results/{experiment}/{barcode}/medaka_{assembler}/busco_out"
-        out="results/{experiment}/{barcode}/medaka_{assembler}/busco"
+        out="results/{experiment}/{barcode}/busco/medaka_{assembler}"
     conda:
         "envs/busco.yaml"
     log:

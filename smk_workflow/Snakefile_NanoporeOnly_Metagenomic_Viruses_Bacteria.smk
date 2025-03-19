@@ -1,14 +1,17 @@
 import json
 
-configfile: "config/NanoporeOnlyVirus.yaml"
+
+configfile: "config/Snakefile_NanoporeOnly_Metagenomic_Viruses_Bacteria.yaml"
 
 EXPERIMENT = config["Experiment"]
 BARCODES = config["Barcodes"]
 ASSEMBLER = config["Assembler"]
-# rule all not tested yet
+
+
 rule all:
     input:
-        expand("results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLER)
+        expand("results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}/consensus.oriented.fasta", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLER)
+
 
 rule preprocessing:
     input:
@@ -23,9 +26,25 @@ rule preprocessing:
         "python scripts/preprocessing.py {input} {wildcards.experiment} {output} 2>&1 > {log}"
 
 
-rule get_filter_params:
+rule filter_out_host_reads: # design in such a way, that if the assembly is from a pure culture an empty mock genome can be used, so nothing will be filtered
     input:
         "results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq"
+    output:
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost.fastq"
+    params:
+        host_gen_ref=config["HostRefGenome"]
+    log:
+        "logs/{experiment}/{barcode}/filter_out_host_reads.log"
+    conda:
+        "envs/minimap2.yaml"
+    shell:
+        "python scripts/filter_out_host_reads.py -q {input} -hgr {params.host_gen_ref} -o {output} 2>&1 > {log}"
+
+
+rule get_filter_params:
+    input:
+        # "results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq"
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost.fastq"
     params:
         target_cov=config["TargetCoverageAsm"],
         genomeSize=config["GenomeSize"]
@@ -41,12 +60,13 @@ rule get_filter_params:
 
 rule filter_readlength:
     input:
-        fastq="results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq",
+        # fastq="results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq",
+        fastq="results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost.fastq",
         params_json="results/{experiment}/{barcode}/filt_params.json"
     params:
         minlen= lambda wildcards, input: json.load(open(input.params_json))["len"]
     output:
-        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sizefilt.fastq"
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost_sizefilt.fastq"
     log:
         "logs/{experiment}/{barcode}/size_filter.log"
     conda:
@@ -57,12 +77,12 @@ rule filter_readlength:
 
 rule filter_readqual:
     input:
-        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sizefilt.fastq",
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost_sizefilt.fastq",
         params_json="results/{experiment}/{barcode}/filt_params.json"
     params:
         minqual= lambda wildcards, input: json.load(open(input.params_json))["qual"]
     output:
-        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fastq"
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost_sqfilt.fastq"
     log:
         "logs/{experiment}/{barcode}/qual_filter.log"
     conda:
@@ -73,9 +93,13 @@ rule filter_readqual:
 
 rule get_longest_reads:
     input:
-        "results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq"
+        reads="results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost.fastq",
+        # the below is added here only to prevent this rule from running in parallel with 
+        # get_filter_params, because both scripts access the same file and use next()
+        # which causes errors/race conditions in both processes
+        start_flag="results/{experiment}/{barcode}/filt_params.json" 
     output:
-        "results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq.longestx"
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost.fastq.longestx"
     params:
         longest_cov=config["LongestReadsCov"],
         genomeSize=config["GenomeSize"]
@@ -84,15 +108,15 @@ rule get_longest_reads:
     conda:
         "envs/python3.yaml"
     shell:
-        "python scripts/get_x_cov_longest_reads.py -cov {params.longest_cov} -g {params.genomeSize} -r {input} 2>&1 > {log}"
+        "python scripts/get_x_cov_longest_reads.py -cov {params.longest_cov} -g {params.genomeSize} -r {input.reads} 2>&1 > {log}"
 
 
 rule inject_longest_reads_into_filtered:
     input:
-        sqfilt="results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fastq",
-        longest="results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq.longestx"
+        sqfilt="results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost_sqfilt.fastq",
+        longest="results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost.fastq.longestx"
     output:
-        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.pluslong.fastq"
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost_sqfilt.pluslong.fastq"
     log:
         "logs/{experiment}/{barcode}/inject_longest_reads_into_filtered.log"
     conda:
@@ -105,10 +129,10 @@ rule inject_longest_reads_into_filtered:
 rule porechop_barcodes_and_adapters:
     input:
         # "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fastq"
-        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.pluslong.fastq"
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost_sqfilt.pluslong.fastq"
     output:
         # "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta"
-        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.pluslong.fasta"
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost_sqfilt.pluslong.fasta"
     log:
         "logs/{experiment}/{barcode}/porechop.log"
     conda:
@@ -117,10 +141,18 @@ rule porechop_barcodes_and_adapters:
         "porechop -i {input} -o {output} 2>&1 > {log}"
 
 
+# rule convert_multiline_fasta:
+#     input:
+#         "results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost_sqfilt.pluslong.fasta"
+#     output:
+#         # "results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost_sqfilt.fasta"   
+
+
+
 rule assemble_canu:
     input:
         # "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta"
-        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.pluslong.fasta"
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost_sqfilt.pluslong.fasta"
     output:
         outdir=directory("results/{experiment}/{barcode}/canu"),
         contigs="results/{experiment}/{barcode}/canu/{experiment}_{barcode}_canu.contigs.fasta"
@@ -139,7 +171,7 @@ rule assemble_canu:
 
 # rule polish_canu_nextpolish:
 #     input:
-#         reads="results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta",
+#         reads="results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost_sqfilt.fasta",
 #         draft_asm="results/{experiment}/{barcode}/canu/{experiment}_{barcode}_canu.contigs.fasta"
 #     output:
 #         outdir=directory("results/{experiment}/{barcode}/medaka_canu"),
@@ -156,7 +188,7 @@ rule assemble_canu:
 
 rule polish_canu_medaka:
     input:
-        reads="results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta",
+        reads="results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost_sqfilt.fasta",
         draft_asm="results/{experiment}/{barcode}/canu/{experiment}_{barcode}_canu.contigs.fasta"
     output:
         outdir=directory("results/{experiment}/{barcode}/medaka_canu"),
@@ -173,7 +205,7 @@ rule polish_canu_medaka:
 rule assemble_flye:
     input:
         # "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta"
-        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.pluslong.fasta"
+        "results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost_sqfilt.pluslong.fasta"
     output:
         outdir=directory("results/{experiment}/{barcode}/flye"),
         outfile="results/{experiment}/{barcode}/flye/assembly.fasta"
@@ -183,7 +215,7 @@ rule assemble_flye:
     threads:
         16
     log:
-        "logs/{experiment}/{barcode}/canu.log"
+        "logs/{experiment}/{barcode}/flye.log"
     conda:
         "envs/flye.yaml"
     shell:
@@ -193,7 +225,7 @@ rule assemble_flye:
 rule polish_flye_medaka:
     input:
         # reads="results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.fasta",
-        reads="results/{experiment}/{barcode}/{experiment}_{barcode}_all_sqfilt.pluslong.fasta",
+        reads="results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost_sqfilt.pluslong.fasta",
         draft_asm="results/{experiment}/{barcode}/flye/assembly.fasta"
     output:
         outdir=directory("results/{experiment}/{barcode}/medaka_flye"),
@@ -213,4 +245,42 @@ rule polish_flye_medaka:
 #          "results/{experiment}/{barcode}/medaka_flye/consensus.fasta"
 #      output:
 
+rule circlator_fixstart:
+    input:
+        "results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta"
+    output:
+        # "results/{experiment}/{barcode}/circl_fixstart/{assembly}.oriented.fasta"
+        "results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}/consensus.oriented.fasta"
+    params:
+        out_prefix = "results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}/consensus.oriented"
+    conda:
+        "envs/circlator.yaml"
+    log:
+        "logs/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}/circlator_fixstart.log"
+    shell:
+        "circlator fixstart {input} {params.out_prefix} 2>&1 > {log}"
+
+# create a rule that splits the assemblies into separate contigs, so busco can 
+# assess them individually using automatic lineage detection; either split
+# them blindly by headers or try a tool like kraken that tries to identify their
+# lineage/species identity first
+
+
+rule busco:
+    input:
+        "results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta"
+    output:
+        # "results/{experiment}/{barcode}/medaka_{assembler}/"
+        "results/{experiment}/{barcode}/medaka_{assembler}/busco/logs/busco.log"
+    params:
+        # out="results/{experiment}/{barcode}/medaka_{assembler}/busco_out"
+        out="results/{experiment}/{barcode}/medaka_{assembler}/busco"
+    conda:
+        "envs/busco.yaml"
+    log:
+        "logs/{experiment}/{barcode}/busco/medaka_{assembler}/busco.log"
+    shell: # use batch mode for split assembly
+         # -m is the mode flag => run in genome mode (altern.: "transcriptome" and "proteins")
+        "busco -i {input} -o {params.out} -m genome --auto-lineage --cpu 16 2>&1 > {log}"
+        # "busco -i metagenome.fasta -m genome -l bacteria_odb12,viruses_odb12 --cpu 16"
     

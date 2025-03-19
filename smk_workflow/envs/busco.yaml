@@ -3,4 +3,4 @@ channels:
   - bioconda
   - nodefaults
 dependencies:
-  - busco
+  - busco  # in SM026 it was BUSCO v5.6.1 at the time

@@ -4,9 +4,18 @@ HighQualReadsCov: 30 # not used yet => idea: select only the highest Q reads for
 TargetCoverageAsm: 60
 HostRefGenome: resources/empty_mock_reference.fa # Default = resources/empty_mock_reference.fa
 
-Experiment: "SM0037_CistCret_CVorgias"
+Experiment: "SM0037_CMV_Voigt"
 Barcodes: [
-    "bc11_and_12"
+    "barcode01",
+    "barcode02",
+    "barcode03",
+    "barcode04",
+    "barcode05",
+    "barcode06",
+    "barcode07",
+    "barcode08",
+    "barcode09",
+    "barcode10",
     ]
 Assembler: ["flye"]  # "canu"
 

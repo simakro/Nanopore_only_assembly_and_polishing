@@ -250,8 +250,7 @@ def parse_fastq(fastq: str, analyze=True, search_lst=False, outfile=False, outfm
     fend = timer()
     print(f"Runtime {parse_fastq.__name__}: {fend-fstart}")
     if analyze:
-        reads_available = all([read_lens > 0, read_ct > 0, total_bp > 0])
-        if reads_available:
+        if len(reads) > 0:
             print("Input read file statistics:")
             read_ct = len(reads)
             read_lens = [read.len for read in reads]

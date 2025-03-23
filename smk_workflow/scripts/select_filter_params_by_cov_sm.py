@@ -250,15 +250,22 @@ def parse_fastq(fastq: str, analyze=True, search_lst=False, outfile=False, outfm
     fend = timer()
     print(f"Runtime {parse_fastq.__name__}: {fend-fstart}")
     if analyze:
-        print("Input read file statistics:")
-        read_ct = len(reads)
-        read_lens = [read.len for read in reads]
-        total_bp = sum(read_lens)
-        print(f"Read count: {read_ct}")
-        print(f"Total bases: {total_bp}")
-        print(f"Avg read length: {total_bp/read_ct}")
-        print(f"Shortest read: {min(read_lens)}")
-        print(f"Longest read: {max(read_lens)}")
+        reads_available = all([read_lens > 0, read_ct > 0, total_bp > 0])
+        if reads_available:
+            print("Input read file statistics:")
+            read_ct = len(reads)
+            read_lens = [read.len for read in reads]
+            total_bp = sum(read_lens)
+            print(f"Read count: {read_ct}")
+            print(f"Total bases: {total_bp}")
+            # if read_ct > 0:
+            print(f"Avg read length: {total_bp/read_ct}")
+            # else:
+            #     print(f"Avg read length: 0")
+            print(f"Shortest read: {min(read_lens)}")
+            print(f"Longest read: {max(read_lens)}")
+        else:
+            print("No reads were available")
         # ReadN50, median length ...
     return  reads
 

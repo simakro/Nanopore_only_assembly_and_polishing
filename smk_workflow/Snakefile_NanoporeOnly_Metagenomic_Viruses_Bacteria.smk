@@ -189,7 +189,8 @@ rule assemble_canu:
 
 rule polish_canu_medaka:
     input:
-        reads="results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost_sqfilt.fasta",
+        # reads="results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost_sqfilt.fasta",
+        reads="results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost_sqfilt.pluslong.fasta",
         draft_asm="results/{experiment}/{barcode}/canu/{experiment}_{barcode}_canu.contigs.fasta"
     output:
         outdir=directory("results/{experiment}/{barcode}/medaka_canu"),

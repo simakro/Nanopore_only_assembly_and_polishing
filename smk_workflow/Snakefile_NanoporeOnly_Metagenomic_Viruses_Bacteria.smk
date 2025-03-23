@@ -159,7 +159,10 @@ rule assemble_canu:
         contigs="results/{experiment}/{barcode}/canu/{experiment}_{barcode}_canu.contigs.fasta"
     params:
         genomeSize=config["GenomeSize"],
-        useGrid="False"
+        useGrid="False",
+        minInputCoverage=config["CanuMinInput"],
+        stopOnLowCoverage=config["CanuStopOnCov"]
+
     # threads:
     #     16
     log:
@@ -167,7 +170,7 @@ rule assemble_canu:
     conda:
         "envs/canu.yaml"
     shell:
-        "canu -nanopore {input} -p {wildcards.experiment}_{wildcards.barcode}_canu -d {output.outdir} genomeSize={params.genomeSize} useGrid={params.useGrid} 2>&1 > {log}"
+        "canu -nanopore {input} -p {wildcards.experiment}_{wildcards.barcode}_canu -d {output.outdir} genomeSize={params.genomeSize} useGrid={params.useGrid} minInputCoverage={params.minInputCoverage} stopOnLowCoverage={params.stopOnLowCoverage} 2>&1 > {log}"
 
 
 # rule polish_canu_nextpolish:

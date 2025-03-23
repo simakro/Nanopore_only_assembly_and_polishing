@@ -10,3 +10,6 @@ Barcodes: [
     ]
 Assembler: ["flye"]  # "canu"
 
+# Canu specific parameters
+CanuMinInput: 5
+CanuStopOnCov: 5

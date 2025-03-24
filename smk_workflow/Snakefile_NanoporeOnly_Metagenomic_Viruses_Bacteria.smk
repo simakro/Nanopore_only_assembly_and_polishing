@@ -310,3 +310,4 @@ rule busco:
         # "busco -i metagenome.fasta -m genome -l bacteria_odb12,viruses_odb12 --cpu 16"
     
 # maybe add rule for creation of busco reports either like in big bacterial workflow or using buscomp tool for compilation of busco results
+# maybe add rule and script that exclude contigs below a set min-length, to filter out truncated and/or badly assmebled contigs

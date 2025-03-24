@@ -12,7 +12,7 @@ def construct_filenames(kraken_outdir):
 def read_kraken_file(k_file: str) -> dict:
     kraken_class = {"C": {}, "U": {}}
     header = ["tax-id", "seq_len"]
-    with open(k_file) as kf:
+    with open(k_file, "r") as kf:
         for line in kf:
             l = line.strip()
             if len(l):
@@ -44,7 +44,7 @@ def read_kraken_report(report: str) -> dict:
         "ncbi-tax-id",
         "scientific_name"
     ]
-    with open(report) as rep:
+    with open(report, "r") as rep:
         all_lines = []
         for line in rep:
             line = line.strip()
@@ -78,11 +78,28 @@ def associate_taxnames_with_contigs(
     if len(unclassified):
         report.append(unclass_msg)
     print("report", report)
+    return report
+
+
+def write_custom_report(report_data: list, report_file: str):
+    header = "contig\tseq_len\tclass_rank\tclassification"
+    with open(report_file, "w") as rep:
+        rep.write(header + "\n")
+        for tig in report_data:
+            if type(tig) == dict:
+                l = f'{tig["contig_id"]}\t{tig["seq_len"]}\t{tig["class_rank"]}\t{tig["class_name"]}'
+                rep.write(l + "\n")
+            elif type(tig) == str:
+                rep.write(tig + "\n")
+            else:
+                print("Encountered unexpected type in classification report data")
 
 
 if __name__ == "__main__":
     kraken_outdir = sys.argv[1]
+    post_proc_report = os.path.join(kraken_outdir, "custom_summary.tsv") 
     report, class_file = construct_filenames(kraken_outdir)
     class_file_data = read_kraken_file(class_file)
     report_info = read_kraken_report(report)
-    associate_taxnames_with_contigs(report_info, class_file_data)
+    report_data = associate_taxnames_with_contigs(report_info, class_file_data)
+    write_custom_report(report_data, post_proc_report)

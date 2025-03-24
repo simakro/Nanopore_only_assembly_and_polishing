@@ -270,6 +270,26 @@ rule circlator_fixstart:
 # them blindly by headers or try a tool like kraken that tries to identify their
 # lineage/species identity first
 
+rule minikraken_classification:
+    input:
+        fasta = "results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta"
+    output:
+        raw = "results/{experiment}/{barcode}/minikraken_{assembler}/classifications.kraken",
+        report = "results/{experiment}/{barcode}/minikraken_{assembler}/classifications.report"
+    params:
+        db = config["KrakenDB"]
+    log:
+        "logs/{experiment}/{barcode}/kraken2/medaka_{assembler}/kraken2.log"
+    conda:
+        "envs/kraken2.yaml"
+    shell:
+        """
+        kraken2 --db {params.db} \
+                --output {output.raw} \
+                --report {output.report} \
+                {input.fasta}
+        """
+# snakemake --cores 32 --use-conda results/SM0037_CMV_Voigt/barcode01/minikraken_flye/classifications.kraken
 
 rule busco:
     input:

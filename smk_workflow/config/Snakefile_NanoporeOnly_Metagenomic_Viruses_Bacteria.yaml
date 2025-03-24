@@ -18,4 +18,5 @@ Barcodes: [
     "barcode10",
     ]
 Assembler: ["flye"]  # "canu"
+KrakenDB: /home/simon/Nanopore_only_assembly_and_polishing/smk_workflow/resources/databases/kraken2_standard_08gb_20240904
 

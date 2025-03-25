@@ -1,6 +1,5 @@
 import os
 import sys
-import json
 
 
 def construct_filenames(kraken_outdir):
@@ -19,6 +18,8 @@ def read_kraken_file(k_file: str) -> dict:
                 ls = l.split("\t")
                 class_status, seq_id = ls[0], ls[1]
                 info = dict(zip(header, ls[2:4]))
+                # info = dict(zip(header, [int(n) for n in ls[2:4]]))
+                info["seq_len"] = int(info["seq_len"])
                 kraken_class[class_status][seq_id] = info
     print(kraken_class)
     return kraken_class

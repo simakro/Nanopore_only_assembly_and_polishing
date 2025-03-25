@@ -301,7 +301,7 @@ rule kraken_post_processing:
     params:
         kraken_outdir="results/{experiment}/{barcode}/minikraken_{assembler}"
     log:
-        "logs/{experiment}/{barcode}/kraken_post_processing.log"
+        "logs/{experiment}/{barcode}/minikraken_{assembler}_post_processing/kraken_post_processing.log"
     conda:
         "envs/python3.yaml"
     shell:

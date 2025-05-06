@@ -43,6 +43,27 @@ rule filter_out_host_reads: # design in such a way, that if the assembly is from
         "python scripts/filter_out_host_reads.py -q {input} -hgr {params.host_gen_ref} -o {output} 2>&1 > {log}"
 
 
+rule kraken2_classification_reads:
+    input:
+        fastq = "results/{experiment}/{barcode}/{experiment}_{barcode}_all_nonhost.fastq"
+    output:
+        raw = "results/{experiment}/{barcode}/minikraken_reads/classifications_nonhost_reads.kraken",
+        report = "results/{experiment}/{barcode}/minikraken_reads/classifications_nonhost_reads.report"
+    params:
+        db = config["KrakenDB"]
+    log:
+        "logs/{experiment}/{barcode}/kraken2/minikraken_reads/kraken2.log"
+    conda:
+        "envs/kraken2.yaml"
+    shell:
+        """
+        kraken2 --db {params.db} \
+                --output {output.raw} \
+                --report {output.report} \
+                {input.fastq}
+        """
+
+
 rule get_filter_params:
     input:
         # "results/{experiment}/{barcode}/{experiment}_{barcode}_all.fastq"
@@ -225,8 +246,9 @@ rule assemble_flye:
     conda:
         "envs/flye.yaml"
     shell:
-        "flye --nano-hq {input} -o {output.outdir} -g {params.genomeSize} -t {threads} 2>&1 > {log}"
+        "flye --nano-hq {input} -o {output.outdir} -g {params.genomeSize} -t {threads} 2>&1 > {log}" # consider using --meta 
 
+# consider adding ne rule for metaFlye assembler (separate tool derived from Flye)
 
 rule polish_flye_medaka:
     input:
@@ -271,7 +293,7 @@ rule circlator_fixstart:
 # them blindly by headers or try a tool like kraken that tries to identify their
 # lineage/species identity first
 
-rule kraken2_classification:
+rule kraken2_classification_assembly:
     input:
         fasta = "results/{experiment}/{barcode}/medaka_{assembler}/consensus.fasta"
     output:
@@ -280,7 +302,7 @@ rule kraken2_classification:
     params:
         db = config["KrakenDB"]
     log:
-        "logs/{experiment}/{barcode}/kraken2/medaka_{assembler}/kraken2.log"
+        "logs/{experiment}/{barcode}/kraken2/mminikraken_{assembler}/kraken2.log"
     conda:
         "envs/kraken2.yaml"
     shell:
@@ -293,7 +315,7 @@ rule kraken2_classification:
 # snakemake --cores 32 --use-conda results/SM0037_CMV_Voigt/barcode01/minikraken_flye/classifications.kraken
 
 
-rule kraken_post_processing:
+rule kraken_assembly_post_processing:
     input:
         "results/{experiment}/{barcode}/minikraken_{assembler}/classifications.report"
     output:

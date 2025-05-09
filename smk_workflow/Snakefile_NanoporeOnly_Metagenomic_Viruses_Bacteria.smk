@@ -12,8 +12,8 @@ rule all:
     input:
         expand("results/{experiment}/{barcode}/circl_fixstart/medaka_{assembler}/consensus.oriented.fasta", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLER),
         # expand("results/{experiment}/{barcode}/busco/medaka_{assembler}/logs/busco.log", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLER),
-        expand("results/{experiment}/{barcode}/minikraken_{assembler}/custom_summary.tsv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLER)
-
+        expand("results/{experiment}/{barcode}/minikraken_{assembler}/custom_summary.tsv", experiment=EXPERIMENT, barcode=BARCODES, assembler=ASSEMBLER),
+        expand("results/{experiment}/{barcode}/minikraken_reads/classifications_nonhost_reads.report", experiment=EXPERIMENT, barcode=BARCODES)
 
 rule preprocessing:
     input:
@@ -146,7 +146,6 @@ rule inject_longest_reads_into_filtered:
         "envs/python3.yaml"
     shell:
         "python scripts/inject_longest_reads_into_filt.py -a {input.sqfilt} -i {input.longest} 2>&1 > {log}"
-    
     
 
 rule porechop_barcodes_and_adapters:
@@ -302,7 +301,7 @@ rule kraken2_classification_assembly:
     params:
         db = config["KrakenDB"]
     log:
-        "logs/{experiment}/{barcode}/kraken2/mminikraken_{assembler}/kraken2.log"
+        "logs/{experiment}/{barcode}/kraken2/minikraken_{assembler}/kraken2.log"
     conda:
         "envs/kraken2.yaml"
     shell:
@@ -327,7 +326,7 @@ rule kraken_assembly_post_processing:
     conda:
         "envs/python3.yaml"
     shell:
-        "python scripts/kraken_classification_post_processing.py {params.kraken_outdir} 2>&1 > {log}"
+        "python scripts/kraken_assembly_classification_post_processing.py {params.kraken_outdir} 2>&1 > {log}"
 
 
 rule busco:

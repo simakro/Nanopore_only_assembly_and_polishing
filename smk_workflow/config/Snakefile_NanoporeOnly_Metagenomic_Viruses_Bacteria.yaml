@@ -4,9 +4,11 @@ HighQualReadsCov: 30 # not used yet => idea: select only the highest Q reads for
 TargetCoverageAsm: 60
 HostRefGenome: /home/simon/reference_genomes/GCF_000001405.40_GRCh38.p14_genomic.fna # Default = resources/empty_mock_reference.fa
 
-Experiment: 20240428_Neuropatho_Meningitis_Erreger_Borreliose_Verdacht_Liquor # "SM0037_CMV_Voigt"
+Experiment: Neuropatho_SM035_N473_plasmacytoma # 20240428_Neuropatho_Meningitis_Erreger_Borreliose_Verdacht_Liquor # Neuropatho_N1244_MB_Verdacht  # "SM0037_CMV_Voigt"
 Barcodes: [
-    "fastq_pass"
+    "N473_fastq_pass_all"
+    # "all_reads_without_barcodes_to_filter_out_carry_over"
+    # "fastq_pass_1"
     # "barcode01",
     # "barcode02",
     # "barcode03",

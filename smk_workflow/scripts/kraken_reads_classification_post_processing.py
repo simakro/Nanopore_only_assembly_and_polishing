@@ -60,18 +60,26 @@ def read_kraken_report(report: str) -> dict:
 
 
 def associate_taxnames_with_readnames(
-    report_info: dict, class_file_data: dict, sort_key: str = "seq_len"  # "contig_id"
+    report_info: dict, class_file_data: dict, sort_key: str = "class_name"  # "contig_id"
 ):
     report = []
     classified_tigs = class_file_data["C"]
-    # filter out human read using ncbi tax-id for homo sapiens
-    non_human_reads = {k:v for k,v in classified_tigs.items() if int(v["tax-id"]) != 9606}
-    # filter out any reads that are not classified at least at family level
-    req_rank = ["S", "G", "F"]
-    filt_report_info = [r for r in report_info if r["taxon_rank"][0] in req_rank]
-    excl_for_rank = len(report_info) - len(filt_report_info)
-    ct_human_reads = len(classified_tigs) - len(non_human_reads)
     unclassified = class_file_data["U"]
+    rep_info_wo_u = [r for r in report_info if r["taxon_rank"] != "U"]
+    # filter out human reads using ncbi tax-id for homo sapiens
+    non_human_reads = {k:v for k,v in classified_tigs.items() if int(v["tax-id"]) != 9606}
+    ct_human_reads = len(classified_tigs) - len(non_human_reads)
+    # filter out any hits that are not classified at least at family level
+    req_rank = ["S", "G", "F"]
+    rankfilt_rinfo = [r for r in rep_info_wo_u if r["taxon_rank"][0] in req_rank]
+    rank_excluded = [r for r in rep_info_wo_u if r not in rankfilt_rinfo]
+    # ct_excl_for_rank = len(report_info) - len(rankfilt_rinfo)
+    ct_rank_excl = sum([int(r["num_class_reads"]) for r in rank_excluded])
+    # filter out any hits that are not supported by at least 3 reads
+    filt_report_info = [r for r in rankfilt_rinfo if int(r["num_class_reads"]) > 2]
+    rank_excluded = [r for r in rankfilt_rinfo if r not in filt_report_info]
+    excl_for_supp = sum([int(r["num_class_reads"]) for r in rank_excluded])
+
     for tig in non_human_reads:
         tig_id = tig
         tig_info = classified_tigs[tig]
@@ -85,8 +93,9 @@ def associate_taxnames_with_readnames(
     # additional info messages
     unclass_msg = f"# {len(unclassified)} reads could not be classified"
     filt_hs_reads_msg = f"# {ct_human_reads} human reads not included in this summary"
-    rank_excl_msg = f"# {excl_for_rank} reads not classified at least at family level were excluded"
-    msgs = [unclass_msg, filt_hs_reads_msg, rank_excl_msg]
+    rank_excl_msg = f"# {ct_rank_excl} reads not classified at least at family level were excluded"
+    supp_excl_msg = f"# {excl_for_supp} reads excluded not belonging to classification calls supported by at least 3 reads"
+    msgs = [unclass_msg, filt_hs_reads_msg, rank_excl_msg, supp_excl_msg]
     report.append("")
     for m in msgs:
         if len(m):

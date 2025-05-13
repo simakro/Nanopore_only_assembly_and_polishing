@@ -1,4 +1,4 @@
-from time import localtime, strftime
+from time import localtime, strftime, perf_counter
 from collections import defaultdict
 import argparse
 import subprocess

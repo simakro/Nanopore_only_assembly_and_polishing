@@ -6,7 +6,8 @@ HostRefGenome: /home/simon/reference_genomes/GCF_000001405.40_GRCh38.p14_genomic
 
 Experiment: Neuropatho_SM035_N473_plasmacytoma # 20240428_Neuropatho_Meningitis_Erreger_Borreliose_Verdacht_Liquor # Neuropatho_N1244_MB_Verdacht  # "SM0037_CMV_Voigt"
 Barcodes: [
-    "N473_fastq_pass_all"
+    # "N473_fastq_pass_all"
+    "N473_fastq_pass_notmux"
     # "all_reads_without_barcodes_to_filter_out_carry_over"
     # "fastq_pass_1"
     # "barcode01",
